@@ -283,6 +283,14 @@
     }
     function formatTime(sec) { if (!Number.isFinite(sec)) return '--:--'; return `${Math.floor(sec/60)}:${String(Math.round(sec%60)).padStart(2,'0')}`; }
     function showInlineError(bubble, message) { let e=bubble.querySelector('.error'); if(!e){e=document.createElement('div');e.className='error';bubble.appendChild(e);} e.textContent=message; }
+    const STAGE_CUE = /语气|语速|平静|平和|轻声|低声|温柔|认真|坚定|轻笑|微笑|叹气|停顿|沉默|放松|调侃|害羞|哽咽|吸气|呼气|咳嗽|激动|开心|难过|无奈|思考|缓慢|提高音量|压低声音/;
+    function cleanAssistantText(value) {
+      return String(value || '')
+        .replace(/[\(（\[【]\s*([^\)）\]】\r\n]{1,40})\s*[\)）\]】]/g, (whole, cue) => STAGE_CUE.test(cue) ? '' : whole)
+        .replace(/^[\s，,。；;：:]+/, '')
+        .replace(/[ \t]{2,}/g, ' ')
+        .trim();
+    }
     function avatarMarkup() {
       return state.persona==='kunkun'
         ? `<div class="avatar kun-avatar"><img src="${KUN_AVATAR_SRC}" alt="KUN Chat 动漫头像" /></div>`
@@ -302,6 +310,7 @@
     }
 
     function addMessage(role, content, saveIt=false, sources=[]) {
+      if (role === 'assistant') content = cleanAssistantText(content);
       const row = document.createElement('div'); row.className = `row ${role}`;
       const bubble = document.createElement('div'); bubble.className='bubble'; bubble.textContent=content;
       if (role === 'assistant') { row.innerHTML = avatarMarkup(); const sourceBlock=sourceTools(sources);if(sourceBlock)bubble.appendChild(sourceBlock);bubble.appendChild(audioTools(content));row.appendChild(bubble); }
