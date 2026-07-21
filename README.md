@@ -17,6 +17,7 @@ the local production RAG database.
 - Browser recording plus mobile system-recorder fallback
 - Local Whisper speech recognition
 - Optional MiniMax/VoxCPM TTS integrations
+- Optional MiniMax Music 3.0 original a-cappella lab (text-to-music only)
 - Clear AI-character disclosure in the interface
 
 ## Local setup
@@ -84,10 +85,18 @@ To remove it:
 powershell -ExecutionPolicy Bypass -File .\scripts\uninstall-auto-sync.ps1
 ```
 
+## Original a-cappella lab
+
+Set `KUN_MUSIC_ENABLED=true` and keep the MiniMax API key on the server. The
+browser calls `/music/generate`; it never receives the key. The endpoint only
+uses `music-3.0` or `music-3.0-free` text-to-music generation and intentionally
+rejects reference audio, cover models, cloned voice IDs, and unconfirmed
+lyrics. Generated URLs are temporary and expire after roughly 24 hours.
+
 ## Tests
 
 ```powershell
-uv run python -m unittest tests.test_local_stt tests.test_persona tests.test_public_quota tests.test_rag_store tests.test_runtime_env tests.test_tts_text
+uv run python -m unittest discover -s tests -v
 ```
 
 ## License

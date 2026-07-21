@@ -52,6 +52,8 @@
     .dot { width: 8px; height: 8px; border-radius: 50%; background: #c9c9c9; }
     .dot.ready { background: #2db47d; box-shadow: 0 0 0 4px rgba(45,180,125,.12); }
     .quota-badge { margin-left: 5px; padding: 6px 10px; border: 1px solid #c9dbfb; border-radius: 999px; color: #245aa8; background: #edf4ff; font-weight: 700; }
+    .music-trigger { min-height: 36px; padding: 0 13px; border: 1px solid #c9dbfb; border-radius: 999px; color: #174fae; background: linear-gradient(135deg,#f7faff,#e8f1ff); cursor: pointer; font-size: 12px; font-weight: 750; white-space: nowrap; }
+    .music-trigger:hover { border-color: #83acf0; background: #eaf2ff; }
 
     main { width: min(920px, 100%); min-height: 0; margin: 0 auto; padding: 34px 22px 46px; overflow-x: hidden; overflow-y: auto; overscroll-behavior: contain; }
     .notice {
@@ -124,12 +126,37 @@
     .paywall-actions button { min-height: 44px; border: 0; border-radius: 13px; padding: 0 16px; cursor: pointer; }
     .paywall-actions .pending { color: white; background: linear-gradient(135deg,#2468e8,#0d47bd); cursor: not-allowed; opacity: .72; }
 
+    .music-backdrop { position: fixed; inset: 0; z-index: 45; display: grid; place-items: center; padding: 18px; visibility: hidden; opacity: 0; background: rgba(5,20,55,.52); backdrop-filter: blur(10px); transition: .2s; }
+    .music-backdrop.open { visibility: visible; opacity: 1; }
+    .music-panel { width: min(620px,100%); max-height: min(820px,92dvh); overflow: auto; padding: 27px; border: 1px solid #d4e2fb; border-radius: 28px; background: #fbfdff; box-shadow: 0 30px 90px rgba(6,34,93,.32); }
+    .music-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; }
+    .music-head h2 { margin: 0; color: #123a83; font-size: 25px; }
+    .music-head p { margin: 7px 0 0; color: #7281a1; font-size: 13px; line-height: 1.6; }
+    .music-panel .field { margin: 17px 0; }
+    .music-panel input[type="text"], .music-panel textarea { width: 100%; border: 1px solid #d4e1f8; border-radius: 15px; background: white; color: var(--ink); outline: 0; }
+    .music-panel input[type="text"] { padding: 13px 14px; }
+    .music-panel textarea { min-height: 150px; max-height: 260px; resize: vertical; padding: 13px 14px; line-height: 1.65; }
+    .music-panel input:focus, .music-panel textarea:focus { border-color: #6c9df1; box-shadow: 0 0 0 3px rgba(36,104,232,.08); }
+    .music-confirm { display: flex; gap: 9px; align-items: flex-start; color: #5f7094; font-size: 12px; line-height: 1.6; }
+    .music-actions { display: flex; gap: 10px; margin-top: 18px; }
+    .music-actions button { min-height: 45px; border: 0; border-radius: 14px; padding: 0 18px; cursor: pointer; font-weight: 750; }
+    .music-actions .primary { flex: 1; }
+    .music-actions button:disabled { opacity: .55; cursor: default; }
+    .music-result { display: none; margin-top: 19px; padding: 17px; border: 1px solid #d8e5fb; border-radius: 18px; background: #eef5ff; }
+    .music-result.show { display: block; }
+    .music-result strong { display: block; margin-bottom: 9px; color: #174fae; }
+    .music-result audio { width: 100%; }
+    .music-result p { margin: 9px 0 0; color: #6d7da0; font-size: 11px; line-height: 1.55; }
+    .music-error { min-height: 19px; margin-top: 12px; color: var(--danger); font-size: 12px; line-height: 1.55; }
+
     @keyframes rise { from { opacity: 0; transform: translateY(7px); } }
     @keyframes bounce { 0%, 60%, 100% { transform: translateY(0); } 30% { transform: translateY(-5px); } }
     @keyframes pulse { 50% { box-shadow: 0 0 0 8px rgba(216,67,60,.14); } }
     @media (max-width: 600px) {
       header { min-height: 66px; padding-top: max(9px, env(safe-area-inset-top)); }
       .service-status { display: none; }
+      .music-trigger { width: 36px; padding: 0; font-size: 0; }
+      .music-trigger::before { content: '♫'; font-size: 18px; }
       .quota-badge { margin-left: 0; padding: 5px 8px; font-size: 11px; }
       main { padding: 22px 14px 32px; }
       .bubble { max-width: 84%; font-size: 15px; padding: 14px 15px; }
@@ -146,7 +173,7 @@
         <div class="avatar kun-avatar" id="topAvatar"><img src="/assets/kun-avatar-ai-v1.png" alt="KUN Chat 动漫头像" /></div>
         <div class="title-wrap"><div class="title" id="title">KUN Chat</div><div class="subtitle" id="subtitle">公开表达风格 · 本地语料 RAG</div></div>
       </div>
-      <div class="status"><span class="dot" id="statusDot"></span><span class="service-status" id="statusText">正在检查</span><span class="quota-badge" id="quotaText">免费 5 次</span></div>
+      <div class="status"><span class="dot" id="statusDot"></span><span class="service-status" id="statusText">正在检查</span><button class="music-trigger" id="musicBtn" type="button">♫ 原创清唱</button><span class="quota-badge" id="quotaText">免费 5 次</span></div>
     </header>
 
     <main id="main">
@@ -201,13 +228,28 @@
     </section>
   </div>
 
+  <div class="music-backdrop" id="musicLab" role="dialog" aria-modal="true" aria-labelledby="musicTitle">
+    <section class="music-panel">
+      <div class="music-head">
+        <div><h2 id="musicTitle">原创清唱实验</h2><p>生成全新的歌词演唱与旋律。当前为非特定年轻男声，不使用真人声纹。</p></div>
+        <button class="icon-btn" id="closeMusic" type="button" aria-label="关闭原创清唱">×</button>
+      </div>
+      <div class="field"><label for="musicTheme">歌曲主题</label><input id="musicTheme" type="text" maxlength="160" placeholder="例如：蓝色舞台、久别重逢、夜晚的风" /></div>
+      <div class="field"><label for="musicLyrics">原创歌词</label><textarea id="musicLyrics" maxlength="800" placeholder="[Verse]&#10;写下你的原创歌词……&#10;&#10;[Chorus]&#10;写下原创副歌……"></textarea></div>
+      <label class="music-confirm"><input id="musicOriginal" type="checkbox" /> <span>我确认提交的是原创或已获授权的歌词，并同意生成全新旋律；不要求模仿或冒充任何真人歌手。</span></label>
+      <div class="music-actions"><button class="primary" id="generateMusic" type="button">生成原创清唱</button><button class="secondary" id="cancelMusic" type="button">取消</button></div>
+      <div class="music-error" id="musicError" role="alert"></div>
+      <div class="music-result" id="musicResult"><strong id="musicResultTitle">AI 原创演唱</strong><audio id="musicAudio" controls preload="metadata"></audio><p id="musicMeta">生成链接将在 24 小时后失效，请及时试听。</p></div>
+    </section>
+  </div>
+
   <script>
     const $ = (id) => document.getElementById(id);
     const state = {
       persona: localStorage.getItem('persona') || 'kunkun',
       provider: localStorage.getItem('provider') || 'deepseek',
       histories: JSON.parse(localStorage.getItem('chat-histories') || '{}'),
-      status: { providers: {}, voxcpm: false, tts_provider:'voxcpm', rag: {sources:0,chunks:0}, quota:{free_limit:5,free_used:0,free_remaining:5,credits:0,can_chat:true,payment_enabled:false} }, busy: false, audio: null
+      status: { providers: {}, voxcpm: false, tts_provider:'voxcpm', music:{ready:false,model:'music-3.0-free',daily_limit:3}, rag: {sources:0,chunks:0}, quota:{free_limit:5,free_used:0,free_remaining:5,credits:0,can_chat:true,payment_enabled:false} }, busy: false, audio: null
     };
     const names = { kunkun: 'KUN Chat', fengge: '峰哥 AI' };
     const KUN_AVATAR_SRC = '/assets/kun-avatar-ai-v1.png';
@@ -363,6 +405,9 @@
       $('subtitle').textContent=state.persona==='kunkun'?`公开表达风格 · 事实 ${rag.chunks||0} · 口语 ${rag.style_examples||0}`:'公开表达风格 · 本地语音';
       $('modelLabel').textContent=`${state.provider==='minimax'?'MiniMax':'DeepSeek'} · ${ready?'已配置':'未配置'} · 事实 ${rag.chunks||0} · 口语 ${rag.style_examples||0} · ${voiceName}${vox?'在线':'离线'}`;
       $('keyHelp').style.display=ready?'none':'block';
+      const musicReady=!!state.status.music?.ready;
+      $('musicBtn').disabled=!musicReady;
+      $('musicBtn').title=musicReady?'生成原创清唱':'.env.local 中尚未启用 MiniMax Music';
       $('sendBtn').disabled=state.busy||quota.can_chat===false;
     }
     function openPaywall(){ $('paywall').classList.add('open'); }
@@ -380,6 +425,27 @@
         state.status.quota=data.quota;updateStatusUI();
         alert('手机测试额度已开通：50 次');
       } catch(e) { alert(e.message); }
+    }
+    function openMusicLab(){
+      $('musicError').textContent='';
+      $('musicLab').classList.add('open');
+      setTimeout(()=>$('musicTheme').focus(),80);
+    }
+    function closeMusicLab(){ if(!$('generateMusic').disabled)$('musicLab').classList.remove('open'); }
+    async function generateMusic(){
+      const theme=$('musicTheme').value.trim(),lyrics=$('musicLyrics').value.trim();
+      $('musicError').textContent='';$('musicResult').classList.remove('show');
+      if(!$('musicOriginal').checked){$('musicError').textContent='请先勾选原创/授权确认。';return;}
+      const button=$('generateMusic');button.disabled=true;button.textContent='正在创作，通常需要 1–3 分钟…';
+      try{
+        const r=await fetch('/music/generate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({theme,lyrics,original_confirmed:true})});
+        const data=await r.json();if(!r.ok)throw new Error(data.error||'原创清唱生成失败');
+        $('musicAudio').src=data.audio_url;$('musicResultTitle').textContent=data.disclosure||'AI 原创演唱';
+        const duration=data.duration_ms?` · ${Math.round(data.duration_ms/1000)} 秒`:'';
+        $('musicMeta').textContent=`${data.model}${duration} · 今日剩余 ${data.remaining_today} 次 · 链接约 24 小时后失效`;
+        $('musicResult').classList.add('show');$('musicAudio').play().catch(()=>{});
+      }catch(e){$('musicError').textContent=e.message||'原创清唱生成失败';}
+      finally{button.disabled=false;button.textContent='生成原创清唱';}
     }
     async function send() {
       const message=$('input').value.trim(); if(!message||state.busy)return;
@@ -476,6 +542,8 @@
     $('clearChat').onclick=()=>{if(confirm('清空当前角色的本地聊天记录？')){state.histories[state.persona]=[];save();render();$('drawer').classList.remove('open');}};
     $('closePaywall').onclick=closePaywall;
     $('paywall').onclick=e=>{if(e.target===$('paywall'))closePaywall();};
+    $('musicBtn').onclick=openMusicLab;$('closeMusic').onclick=closeMusicLab;$('cancelMusic').onclick=closeMusicLab;$('generateMusic').onclick=generateMusic;
+    $('musicLab').onclick=e=>{if(e.target===$('musicLab'))closeMusicLab();};
     async function boot(){render();await checkStatus();await claimOwnerInvite();}
     boot();
   </script>

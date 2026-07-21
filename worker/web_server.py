@@ -35,6 +35,8 @@ from worker.local_stt import MAX_AUDIO_BYTES as STT_MAX_AUDIO_BYTES
 from worker.local_stt import available as local_stt_available
 from worker.local_stt import transcribe as local_transcribe
 from worker.local_stt import warmup as warmup_local_stt
+from worker.minimax_music import available as minimax_music_available
+from worker.minimax_music import generate_original_song
 from worker.persona import build_system_prompt
 from worker.rag_store import build_index as build_rag_index
 from worker.rag_store import context_for as rag_context_for
@@ -112,9 +114,58 @@ def _usage_connection() -> sqlite3.Connection:
             created_at INTEGER NOT NULL,
             used_at INTEGER
         );
+        CREATE TABLE IF NOT EXISTS music_generations (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            visitor_id TEXT NOT NULL,
+            created_at INTEGER NOT NULL
+        );
         """
     )
     return conn
+
+
+def _reserve_music_generation(visitor_id: str) -> int:
+    """Reserve one generation in a rolling 24-hour window."""
+
+    limit = max(1, int(os.getenv("KUN_MUSIC_DAILY_LIMIT", "3")))
+    now = int(time.time())
+    conn = _usage_connection()
+    try:
+        conn.execute("BEGIN IMMEDIATE")
+        conn.execute("DELETE FROM music_generations WHERE created_at < ?", (now - 86400,))
+        used = int(
+            conn.execute(
+                "SELECT COUNT(*) FROM music_generations WHERE visitor_id = ?",
+                (visitor_id,),
+            ).fetchone()[0]
+        )
+        if used >= limit:
+            raise RateLimitError(f"原创清唱每天最多生成 {limit} 次，请明天再试")
+        conn.execute(
+            "INSERT INTO music_generations(visitor_id, created_at) VALUES (?, ?)",
+            (visitor_id, now),
+        )
+        conn.execute("COMMIT")
+        return limit - used - 1
+    except Exception:
+        if conn.in_transaction:
+            conn.execute("ROLLBACK")
+        raise
+    finally:
+        conn.close()
+
+
+def _refund_music_generation(visitor_id: str) -> None:
+    conn = _usage_connection()
+    try:
+        row = conn.execute(
+            "SELECT id FROM music_generations WHERE visitor_id = ? ORDER BY id DESC LIMIT 1",
+            (visitor_id,),
+        ).fetchone()
+        if row:
+            conn.execute("DELETE FROM music_generations WHERE id = ?", (row["id"],))
+    finally:
+        conn.close()
 
 
 def _ensure_visitor(conn: sqlite3.Connection, visitor_id: str) -> None:
@@ -792,6 +843,33 @@ class Handler(SimpleHTTPRequestHandler):
                 self._send_json(503, {"error": str(exc)})
             return
 
+        if self.path == "/music/generate":
+            reserved = False
+            try:
+                data = self._read_json()
+                if data.get("original_confirmed") is not True:
+                    raise ValueError("请先确认歌词和旋律用于原创生成")
+                visitor_id = self._visitor_id()
+                remaining = _reserve_music_generation(visitor_id)
+                reserved = True
+                result = generate_original_song(
+                    str(data.get("theme", "")),
+                    str(data.get("lyrics", "")),
+                )
+                result["remaining_today"] = remaining
+                self._send_json(200, result)
+            except RateLimitError as exc:
+                self._send_json(429, {"error": str(exc), "code": "rate_limited"})
+            except ValueError as exc:
+                if reserved:
+                    _refund_music_generation(self._visitor_id())
+                self._send_json(400, {"error": str(exc)})
+            except Exception as exc:
+                if reserved:
+                    _refund_music_generation(self._visitor_id())
+                self._send_json(503, {"error": str(exc)})
+            return
+
         if self.path == "/transcribe":
             try:
                 content_length = int(self.headers.get("Content-Length", "0"))
@@ -890,6 +968,12 @@ class Handler(SimpleHTTPRequestHandler):
                         "max_seconds": int(
                             os.getenv("KUN_STT_MAX_AUDIO_SECONDS", "45")
                         ),
+                    },
+                    "music": {
+                        "ready": minimax_music_available(),
+                        "model": os.getenv("MINIMAX_MUSIC_MODEL", "music-3.0-free"),
+                        "daily_limit": max(1, int(os.getenv("KUN_MUSIC_DAILY_LIMIT", "3"))),
+                        "mode": "original_only",
                     },
                     "rag": rag,
                     "quota": _quota_status(visitor_id),
