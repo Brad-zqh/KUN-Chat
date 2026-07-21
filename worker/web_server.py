@@ -338,15 +338,20 @@ _TTS_STAGE_CUE = re.compile(
 )
 
 
-def _normalize_tts_text(text: str) -> str:
-    """Prepare visible assistant text for speech without altering the UI copy."""
-
+def _strip_stage_directions(text: str) -> str:
+    """Remove model-written delivery cues before text reaches the UI or TTS."""
     def remove_stage_direction(match: re.Match[str]) -> str:
         return "" if _TTS_STAGE_CUE.search(match.group(1)) else match.group(0)
 
-    spoken = _TTS_STAGE_DIRECTION.sub(remove_stage_direction, text)
-    spoken = re.sub(r"^[\s，,。；;：:]+", "", spoken)
-    spoken = re.sub(r"[ \t]{2,}", " ", spoken).strip()
+    visible = _TTS_STAGE_DIRECTION.sub(remove_stage_direction, text)
+    visible = re.sub(r"^[\s，,。；;：:]+", "", visible)
+    return re.sub(r"[ \t]{2,}", " ", visible).strip()
+
+
+def _normalize_tts_text(text: str) -> str:
+    """Prepare assistant text for speech, including pronunciation aliases."""
+
+    spoken = _strip_stage_directions(text)
     return re.sub(
         r"(?i)(?<![A-Za-z])I\s*[-_ ]?\s*KUN(?![A-Za-z])",
         "爱坤",
@@ -440,7 +445,7 @@ async def _chat_reply(
     finally:
         if client._client is not None:
             await client._client.aclose()
-    reply = "".join(chunks).strip()
+    reply = _strip_stage_directions("".join(chunks).strip())
     if not reply:
         raise RuntimeError("模型没有返回文字")
     return reply, sources
@@ -500,11 +505,22 @@ def _synthesize_wav(persona: str, text: str) -> bytes:
             },
             method="POST",
         )
-        try:
-            with urllib.request.urlopen(request, timeout=60) as response:
-                result_json = json.loads(response.read().decode("utf-8"))
-        except urllib.error.URLError as exc:
-            raise RuntimeError(f"MiniMax TTS 服务不可用：{exc}") from exc
+        timeout = max(10, int(os.getenv("MINIMAX_TTS_TIMEOUT_SECONDS", "45")))
+        result_json = None
+        for attempt in range(2):
+            try:
+                with urllib.request.urlopen(request, timeout=timeout) as response:
+                    result_json = json.loads(response.read().decode("utf-8"))
+                break
+            except urllib.error.HTTPError as exc:
+                raise RuntimeError(f"MiniMax TTS HTTP 错误 {exc.code}") from exc
+            except urllib.error.URLError as exc:
+                if attempt == 0:
+                    time.sleep(0.6)
+                    continue
+                raise RuntimeError(f"MiniMax TTS 服务不可用：{exc}") from exc
+        if result_json is None:
+            raise RuntimeError("MiniMax TTS 没有返回结果")
         base_resp = result_json.get("base_resp") or {}
         if base_resp.get("status_code", 0) != 0:
             raise RuntimeError(

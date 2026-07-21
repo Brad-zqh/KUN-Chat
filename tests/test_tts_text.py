@@ -1,6 +1,6 @@
 import unittest
 
-from worker.web_server import _normalize_tts_text
+from worker.web_server import _normalize_tts_text, _strip_stage_directions
 
 
 class TtsTextNormalizationTest(unittest.TestCase):
@@ -25,6 +25,16 @@ class TtsTextNormalizationTest(unittest.TestCase):
         self.assertEqual(
             _normalize_tts_text("这次演出（2026年巡演）会认真准备。"),
             "这次演出（2026年巡演）会认真准备。",
+        )
+
+    def test_stage_directions_are_hidden_from_visible_reply(self):
+        self.assertEqual(
+            _strip_stage_directions("（语气平和）Deadman 那个副歌确实有跨度。"),
+            "Deadman 那个副歌确实有跨度。",
+        )
+        self.assertEqual(
+            _strip_stage_directions("我会去看（2026年巡演）。"),
+            "我会去看（2026年巡演）。",
         )
 
 
