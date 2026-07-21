@@ -1,0 +1,453 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>KUN Chat</title>
+  <link rel="preload" as="image" href="/assets/kun-avatar-ai-v1.png" />
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #102047;
+      --muted: #7482a3;
+      --line: #dce6fb;
+      --paper: #f5f8ff;
+      --soft: #ffffff;
+      --accent: #1557d6;
+      --accent-strong: #0d43b8;
+      --accent-soft: #eaf1ff;
+      --kun: #2468e8;
+      --danger: #c83d35;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; background: var(--paper); color: var(--ink); }
+    body { font-family: Inter, ui-sans-serif, system-ui, -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif; }
+    button, textarea, select { font: inherit; }
+    button { -webkit-tap-highlight-color: transparent; }
+    .app { width: 100%; height: 100dvh; overflow: hidden; display: grid; grid-template-rows: auto minmax(0, 1fr) auto; }
+
+    header {
+      position: sticky; top: 0; z-index: 5;
+      display: grid; grid-template-columns: 42px minmax(0,1fr) auto;
+      align-items: center; gap: 12px;
+      min-height: 78px; padding: 12px max(22px, env(safe-area-inset-left));
+      border-bottom: 1px solid rgba(195,211,242,.72); background: rgba(255,255,255,.88);
+      box-shadow: 0 8px 30px rgba(30,74,155,.05); backdrop-filter: blur(22px);
+    }
+    .icon-btn { width: 40px; height: 40px; border: 0; border-radius: 13px; color: var(--ink); background: transparent; cursor: pointer; font-size: 23px; transition: background .18s, color .18s; }
+    .icon-btn:hover { color: var(--accent); background: var(--accent-soft); }
+    .identity { display: flex; align-items: center; min-width: 0; gap: 13px; }
+    .avatar {
+      width: 50px; height: 50px; flex: 0 0 auto; display: grid; place-items: center; overflow: hidden;
+      border: 2px solid rgba(255,255,255,.95); border-radius: 50%; color: white; font-weight: 800; font-size: 15px;
+      background: linear-gradient(145deg, #3178f4, #0d43b8);
+      box-shadow: 0 0 0 1px rgba(36,104,232,.2), 0 8px 20px rgba(27,84,190,.2);
+    }
+    .avatar img { display: block; width: 100%; height: 100%; object-fit: cover; object-position: 50% 30%; }
+    .avatar.kun-avatar { background: #174fb7; }
+    .title-wrap { min-width: 0; }
+    .title { color: #10275b; font-size: 18px; font-weight: 780; letter-spacing: -.01em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .subtitle { margin-top: 2px; color: var(--muted); font-size: 12px; white-space: nowrap; }
+    .status { display: flex; align-items: center; gap: 7px; font-size: 12px; color: var(--muted); white-space: nowrap; }
+    .dot { width: 8px; height: 8px; border-radius: 50%; background: #c9c9c9; }
+    .dot.ready { background: #2db47d; box-shadow: 0 0 0 4px rgba(45,180,125,.12); }
+    .quota-badge { margin-left: 5px; padding: 6px 10px; border: 1px solid #c9dbfb; border-radius: 999px; color: #245aa8; background: #edf4ff; font-weight: 700; }
+
+    main { width: min(920px, 100%); min-height: 0; margin: 0 auto; padding: 34px 22px 46px; overflow-x: hidden; overflow-y: auto; overscroll-behavior: contain; }
+    .notice {
+      width: fit-content; max-width: 620px; margin: 0 auto 34px; padding: 9px 15px;
+      border: 1px solid #d9e6ff; border-radius: 999px; color: #41649e; background: rgba(237,244,255,.9); font-size: 12px; text-align: center;
+    }
+    .messages { display: flex; flex-direction: column; gap: 24px; }
+    .row { display: flex; gap: 14px; align-items: flex-end; animation: rise .22s ease-out; }
+    .row.user { justify-content: flex-end; }
+    .row.assistant { justify-content: flex-start; }
+    .row .avatar { width: 48px; height: 48px; font-size: 12px; }
+    .bubble { max-width: min(720px, 82%); padding: 17px 19px; border-radius: 22px; font-size: 16px; line-height: 1.72; white-space: pre-wrap; word-break: break-word; }
+    .assistant .bubble { border: 1px solid #e1eafb; border-bottom-left-radius: 7px; background: rgba(255,255,255,.96); box-shadow: 0 12px 32px rgba(30,76,160,.08); }
+    .user .bubble { color: white; border-bottom-right-radius: 7px; background: linear-gradient(135deg, #226de8, #0f4bc4); box-shadow: 0 10px 24px rgba(19,78,190,.18); }
+    .audio-tools { display: flex; align-items: center; gap: 9px; margin-top: 13px; padding-top: 11px; border-top: 1px solid #e5ecf8; color: #6f81a4; font-size: 13px; }
+    .speak { border: 0; background: transparent; padding: 0; color: inherit; cursor: pointer; font-weight: 650; }
+    .audio-line { height: 3px; flex: 1; min-width: 48px; overflow: hidden; border-radius: 4px; background: #dce5f6; }
+    .audio-progress { width: 0%; height: 100%; background: var(--accent); transition: width .1s linear; }
+    .error { color: var(--danger); font-size: 13px; margin-top: 10px; line-height: 1.5; }
+    .rag-sources { margin-top: 13px; padding-top: 10px; border-top: 1px solid #e5ecf8; font-size: 12px; color: #7482a3; }
+    .rag-sources strong { display: block; margin-bottom: 6px; color: #617397; }
+    .rag-sources a, .rag-sources span { display: block; width: fit-content; max-width: 100%; margin: 4px 0; color: #2862c5; text-decoration: none; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .typing { display: inline-flex; gap: 5px; padding: 6px 0; }
+    .typing i { width: 6px; height: 6px; border-radius: 50%; background: #898989; animation: bounce 1.1s infinite; }
+    .typing i:nth-child(2) { animation-delay: .15s; } .typing i:nth-child(3) { animation-delay: .3s; }
+
+    .composer-shell {
+      position: relative; z-index: 6; width: 100%;
+      padding: 13px max(18px, env(safe-area-inset-right)) calc(14px + env(safe-area-inset-bottom));
+      border-top: 1px solid rgba(211,224,248,.8); background: rgba(247,250,255,.93);
+      box-shadow: 0 -12px 34px rgba(26,70,150,.045); backdrop-filter: blur(18px);
+    }
+    .composer {
+      width: min(920px, 100%); margin: 0 auto; display: grid; grid-template-columns: auto 1fr auto; gap: 8px; align-items: end;
+      padding: 9px 9px 9px 14px; border: 1px solid #cedcf6; border-radius: 27px; background: white;
+      box-shadow: 0 12px 36px rgba(27,76,168,.1); transition: border-color .18s, box-shadow .18s;
+    }
+    .composer:focus-within { border-color: #6c9df1; box-shadow: 0 13px 38px rgba(24,83,194,.15), 0 0 0 3px rgba(36,104,232,.08); }
+    textarea { resize: none; min-height: 38px; max-height: 132px; padding: 8px 0 5px; border: 0; outline: 0; background: transparent; line-height: 1.45; }
+    textarea::placeholder { color: #999; }
+    .send { width: 42px; height: 42px; border: 0; border-radius: 50%; color: white; background: linear-gradient(145deg,#2874ee,#0d47bd); box-shadow: 0 6px 15px rgba(18,75,184,.23); cursor: pointer; font-size: 22px; }
+    .send:disabled { background: #b8c6df; box-shadow: none; cursor: default; }
+    .mic { width: 42px; height: 42px; border: 0; border-radius: 50%; color: var(--accent); background: #edf4ff; cursor: pointer; font-size: 19px; }
+    .mic.listening { color: white; background: #d8433c; animation: pulse 1.2s infinite; }
+    .composer-meta { width: min(920px,100%); margin: 7px auto 0; display: flex; justify-content: space-between; gap: 14px; color: #7e8cab; font-size: 11px; padding: 0 8px; }
+    .composer-meta label { display: flex; align-items: center; gap: 5px; cursor: pointer; }
+
+    .drawer-backdrop { position: fixed; inset: 0; z-index: 20; visibility: hidden; opacity: 0; background: rgba(0,0,0,.28); transition: .2s; }
+    .drawer-backdrop.open { visibility: visible; opacity: 1; }
+    .drawer { position: absolute; inset: 0 auto 0 0; width: min(380px, 88vw); padding: 26px 22px; background: #f8faff; transform: translateX(-102%); transition: .25s ease; overflow: auto; box-shadow: 20px 0 50px rgba(21,61,132,.12); }
+    .open .drawer { transform: translateX(0); }
+    .drawer h2 { margin: 10px 0 5px; font-size: 21px; }
+    .drawer p { margin: 0 0 24px; color: var(--muted); font-size: 13px; line-height: 1.65; }
+    .field { margin: 18px 0; }
+    .field label { display: block; margin-bottom: 7px; font-size: 12px; color: #777; font-weight: 650; }
+    select { width: 100%; border: 1px solid var(--line); color: var(--ink); background: white; border-radius: 13px; padding: 12px; outline: none; }
+    .drawer button.action { width: 100%; padding: 12px; border: 0; border-radius: 13px; margin-top: 9px; cursor: pointer; }
+    .primary { background: linear-gradient(135deg,#2468e8,#0d47bd); color: white; }
+    .secondary { background: #eaf1ff; color: #214f9c; }
+    .key-help { padding: 13px; border-radius: 13px; background: #fff4f1; color: #73332f !important; }
+    .source-links a { display: block; color: #3f3f7c; text-decoration: none; margin: 9px 0; font-size: 13px; }
+
+    .paywall-backdrop { position: fixed; inset: 0; z-index: 40; display: grid; place-items: center; padding: 22px; visibility: hidden; opacity: 0; background: rgba(7,25,63,.45); backdrop-filter: blur(8px); transition: .2s; }
+    .paywall-backdrop.open { visibility: visible; opacity: 1; }
+    .paywall { width: min(430px, 100%); padding: 28px; border: 1px solid rgba(206,222,250,.9); border-radius: 25px; background: rgba(255,255,255,.98); box-shadow: 0 28px 80px rgba(10,39,96,.26); }
+    .paywall h2 { margin: 0 0 10px; color: #123a83; font-size: 24px; }
+    .paywall p { margin: 0; color: #667798; line-height: 1.75; }
+    .paywall-count { margin: 20px 0; padding: 15px; border-radius: 16px; color: #214f9c; background: #edf4ff; font-weight: 700; text-align: center; }
+    .paywall-actions { display: grid; grid-template-columns: 1fr auto; gap: 10px; margin-top: 18px; }
+    .paywall-actions button { min-height: 44px; border: 0; border-radius: 13px; padding: 0 16px; cursor: pointer; }
+    .paywall-actions .pending { color: white; background: linear-gradient(135deg,#2468e8,#0d47bd); cursor: not-allowed; opacity: .72; }
+
+    @keyframes rise { from { opacity: 0; transform: translateY(7px); } }
+    @keyframes bounce { 0%, 60%, 100% { transform: translateY(0); } 30% { transform: translateY(-5px); } }
+    @keyframes pulse { 50% { box-shadow: 0 0 0 8px rgba(216,67,60,.14); } }
+    @media (max-width: 600px) {
+      header { min-height: 66px; padding-top: max(9px, env(safe-area-inset-top)); }
+      .service-status { display: none; }
+      .quota-badge { margin-left: 0; padding: 5px 8px; font-size: 11px; }
+      main { padding: 22px 14px 32px; }
+      .bubble { max-width: 84%; font-size: 15px; padding: 14px 15px; }
+      .row .avatar { width: 42px; height: 42px; }
+      .row { gap: 8px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header>
+      <button class="icon-btn" id="menuBtn" aria-label="打开设置">☰</button>
+      <div class="identity">
+        <div class="avatar kun-avatar" id="topAvatar"><img src="/assets/kun-avatar-ai-v1.png" alt="KUN Chat 动漫头像" /></div>
+        <div class="title-wrap"><div class="title" id="title">KUN Chat</div><div class="subtitle" id="subtitle">公开表达风格 · 本地语料 RAG</div></div>
+      </div>
+      <div class="status"><span class="dot" id="statusDot"></span><span class="service-status" id="statusText">正在检查</span><span class="quota-badge" id="quotaText">免费 5 次</span></div>
+    </header>
+
+    <main id="main">
+      <div class="notice">AI 同人角色 · 非蔡徐坤本人或工作室</div>
+      <div class="messages" id="messages"></div>
+    </main>
+
+    <div class="composer-shell">
+      <div class="composer">
+        <button class="mic" id="micBtn" aria-label="语音输入">●</button>
+        <input id="audioCapture" type="file" accept="audio/*" capture="microphone" hidden />
+        <textarea id="input" rows="1" placeholder="有问题，尽管问"></textarea>
+        <button class="send" id="sendBtn" aria-label="发送">↑</button>
+      </div>
+      <div class="composer-meta">
+        <label><input type="checkbox" id="autoSpeak" checked /> 自动朗读 AI 回复</label>
+        <span id="modelLabel">MiniMax · 未配置</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="drawer-backdrop" id="drawer">
+    <aside class="drawer" role="dialog" aria-modal="true">
+      <button class="icon-btn" id="closeDrawer" aria-label="关闭">×</button>
+      <h2>聊天设置</h2>
+      <p>聊天记录只保存在这个浏览器本机。角色可以随时切换，两个角色的对话分别保存。</p>
+      <div class="field"><label for="persona">角色</label><select id="persona"><option value="kunkun">坤坤 AI 同人</option><option value="fengge">峰哥 AI</option></select></div>
+      <div class="field"><label for="provider">文字模型</label><select id="provider"><option value="minimax">MiniMax M2.7</option><option value="deepseek">DeepSeek Chat</option></select></div>
+      <p class="key-help" id="keyHelp">文字模型尚未配置 API Key。请在项目的 .env.local 中填写所选模型的 Key，然后重启网页服务。</p>
+      <button class="action primary" id="applySettings">应用设置</button>
+      <button class="action secondary" id="clearChat">清空当前对话</button>
+      <h2 style="margin-top:34px">公开资料索引</h2>
+      <p>人物风格只从公开采访提炼，不把采访原文或整段视频镜像到本地。</p>
+      <div class="source-links">
+        <a href="https://weibo.com/ttarticle/p/show?id=2309404638622287790375" target="_blank">音乐创作采访（微博）↗</a>
+        <a href="https://www.vogue.com.cn/people/talk-of-town/news_1714c7ed6dfc9e70.html" target="_blank">VOGUE 人物采访 ↗</a>
+        <a href="https://www.bilibili.com/video/BV1J8kwYJEdL/" target="_blank">Billboard 完整采访（B站索引）↗</a>
+        <a href="https://i-d.co/article/interview-with-c-pop-star-cai-xukun-aka-kun/" target="_blank">i-D 采访 ↗</a>
+      </div>
+    </aside>
+  </div>
+
+  <div class="paywall-backdrop" id="paywall" role="dialog" aria-modal="true" aria-labelledby="paywallTitle">
+    <section class="paywall">
+      <h2 id="paywallTitle">5 次免费对话已用完</h2>
+      <p>为了覆盖文字模型和语音生成成本，继续聊天需要充值。当前公开测试版已经锁定免费额度，正式收款通道正在接入。</p>
+      <div class="paywall-count">免费剩余 0 / 5</div>
+      <div class="paywall-actions">
+        <button class="pending" type="button" disabled>充值即将开放</button>
+        <button class="secondary" id="closePaywall" type="button">稍后再说</button>
+      </div>
+    </section>
+  </div>
+
+  <script>
+    const $ = (id) => document.getElementById(id);
+    const state = {
+      persona: localStorage.getItem('persona') || 'kunkun',
+      provider: localStorage.getItem('provider') || 'deepseek',
+      histories: JSON.parse(localStorage.getItem('chat-histories') || '{}'),
+      status: { providers: {}, voxcpm: false, tts_provider:'voxcpm', rag: {sources:0,chunks:0}, quota:{free_limit:5,free_used:0,free_remaining:5,credits:0,can_chat:true,payment_enabled:false} }, busy: false, audio: null
+    };
+    const names = { kunkun: 'KUN Chat', fengge: '峰哥 AI' };
+    const KUN_AVATAR_SRC = '/assets/kun-avatar-ai-v1.png';
+    const welcomes = {
+      kunkun: '你好，我是坤坤。想聊音乐、舞台、创作，或者最近的状态，都可以。',
+      fengge: '有什么问题你就问。我是峰哥 AI，不是峰哥本人；这个页面把聊天和本地语音朗读放到一起了。'
+    };
+
+    function history() { return state.histories[state.persona] ||= []; }
+    function save() { localStorage.setItem('chat-histories', JSON.stringify(state.histories)); }
+    function persistSettings() { localStorage.setItem('persona', state.persona); localStorage.setItem('provider', state.provider); }
+    function escapeHtml(s) { return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+    function splitSpeech(text, maxChars=26) {
+      const sentences = text.match(/[^。！？!?；;\n]+[。！？!?；;\n]?/g) || [text];
+      const chunks = [];
+      for (const sentence of sentences) {
+        let rest = sentence.trim();
+        while (rest.length > maxChars) {
+          let cut = -1;
+          for (const mark of ['，','、',',','：',':']) cut = Math.max(cut, rest.lastIndexOf(mark, maxChars));
+          const end = cut >= 10 ? cut + 1 : maxChars;
+          chunks.push(rest.slice(0, end).trim()); rest = rest.slice(end).trim();
+        }
+        if (rest) chunks.push(rest);
+      }
+      return chunks.length ? chunks : [text];
+    }
+
+    function audioTools(text) {
+      const wrap = document.createElement('div'); wrap.className = 'audio-tools';
+      wrap.innerHTML = '<button class="speak">◖)) 朗读</button><div class="audio-line"><div class="audio-progress"></div></div><span class="duration">--:--</span>';
+      const btn = wrap.querySelector('.speak'), progress = wrap.querySelector('.audio-progress'), duration = wrap.querySelector('.duration');
+      const voicePersona = state.persona, segments = splitSpeech(text), pending = new Map();
+
+      function loadSegment(index) {
+        if (pending.has(index)) return pending.get(index);
+        const task = (async () => {
+          const res = await fetch('/synthesize', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ persona: voicePersona, text:segments[index] }) });
+          if (!res.ok) throw new Error((await res.json()).error || '语音生成失败');
+          return new Audio(URL.createObjectURL(await res.blob()));
+        })();
+        pending.set(index, task); return task;
+      }
+
+      async function playSegment(index) {
+        btn.textContent = index === 0 ? `正在生成第 1/${segments.length} 句…` : `衔接第 ${index+1}/${segments.length} 句…`;
+        const audio = await loadSegment(index); wrap.audio = audio;
+        if (state.audio && state.audio !== audio) state.audio.pause();
+        state.audio = audio; wrap.index = index;
+        audio.onloadedmetadata = () => duration.textContent = `${index+1}/${segments.length} · ${formatTime(audio.duration)}`;
+        audio.ontimeupdate = () => progress.style.width = `${(index + (audio.currentTime / audio.duration || 0)) / segments.length * 100}%`;
+        audio.onended = async () => {
+          if (index + 1 < segments.length) {
+            try { await playSegment(index + 1); } catch(e) { showInlineError(wrap.parentElement,e.message);btn.textContent='◖)) 重试'; }
+          } else { wrap.done=true; btn.textContent='◖)) 重播'; progress.style.width='100%'; duration.textContent=`${segments.length}/${segments.length}`; }
+        };
+        if (index + 1 < segments.length) loadSegment(index + 1).catch(() => {});
+        await audio.play(); btn.textContent='Ⅱ 停止';
+      }
+
+      btn.onclick = async () => {
+        if (wrap.audio && !wrap.audio.paused) { wrap.audio.pause(); btn.textContent = '◖)) 继续'; return; }
+        if (wrap.audio && !wrap.done) { await wrap.audio.play(); btn.textContent = 'Ⅱ 停止'; return; }
+        if (wrap.done) { wrap.done=false; progress.style.width='0%'; }
+        btn.disabled = true;
+        try {
+          await playSegment(0);
+        } catch (e) { showInlineError(wrap.parentElement, e.message); btn.textContent = '◖)) 重试'; }
+        finally { btn.disabled = false; }
+      };
+      return wrap;
+    }
+    function formatTime(sec) { if (!Number.isFinite(sec)) return '--:--'; return `${Math.floor(sec/60)}:${String(Math.round(sec%60)).padStart(2,'0')}`; }
+    function showInlineError(bubble, message) { let e=bubble.querySelector('.error'); if(!e){e=document.createElement('div');e.className='error';bubble.appendChild(e);} e.textContent=message; }
+    function avatarMarkup() {
+      return state.persona==='kunkun'
+        ? `<div class="avatar kun-avatar"><img src="${KUN_AVATAR_SRC}" alt="KUN Chat 动漫头像" /></div>`
+        : '<div class="avatar">峰</div>';
+    }
+
+    function sourceTools(sources=[]) {
+      if (!sources.length) return null;
+      const wrap=document.createElement('div');wrap.className='rag-sources';
+      const heading=document.createElement('strong');heading.textContent=`参考公开语料 · ${sources.length} 条`;wrap.appendChild(heading);
+      sources.slice(0,4).forEach((source,index)=>{
+        const item=document.createElement(source.url?'a':'span');item.textContent=`R${source.id||index+1} · ${source.title||'公开转写片段'}`;
+        if(source.url){item.href=source.url;item.target='_blank';item.rel='noopener noreferrer';}
+        wrap.appendChild(item);
+      });
+      return wrap;
+    }
+
+    function addMessage(role, content, saveIt=false, sources=[]) {
+      const row = document.createElement('div'); row.className = `row ${role}`;
+      const bubble = document.createElement('div'); bubble.className='bubble'; bubble.textContent=content;
+      if (role === 'assistant') { row.innerHTML = avatarMarkup(); const sourceBlock=sourceTools(sources);if(sourceBlock)bubble.appendChild(sourceBlock);bubble.appendChild(audioTools(content));row.appendChild(bubble); }
+      else row.appendChild(bubble);
+      $('messages').appendChild(row);
+      if(saveIt){ history().push({role,content,sources}); save(); }
+      requestAnimationFrame(() => $('main').scrollTo({top:$('main').scrollHeight,behavior:'smooth'}));
+      return row;
+    }
+    function addTyping() { const row=document.createElement('div');row.className='row assistant';row.innerHTML=`${avatarMarkup()}<div class="bubble"><span class="typing"><i></i><i></i><i></i></span></div>`;$('messages').appendChild(row);return row; }
+    function render() {
+      $('messages').innerHTML=''; $('title').textContent=names[state.persona];
+      $('topAvatar').classList.toggle('kun-avatar', state.persona==='kunkun');
+      $('topAvatar').innerHTML = state.persona==='kunkun' ? `<img src="${KUN_AVATAR_SRC}" alt="KUN Chat 动漫头像" />` : '峰';
+      $('topAvatar').style.background = state.persona==='kunkun' ? '' : 'radial-gradient(circle at 32% 25%,#d8b395,#714329 45%,#21120d 100%)';
+      const items=history(); if(!items.length) addMessage('assistant',welcomes[state.persona]); else items.forEach(x=>addMessage(x.role,x.content,false,x.sources||[]));
+      $('persona').value=state.persona; $('provider').value=state.provider; updateStatusUI();
+    }
+    function updateStatusUI() {
+      const ready=!!state.status.providers[state.provider];
+      const vox=(state.status.voice_ready||{})[state.persona] ?? state.status.voxcpm;
+      const rag=state.status.rag||{sources:0,chunks:0};
+      const personaTts=(state.status.tts_providers||{})[state.persona]||state.status.tts_provider;
+      const voiceName=personaTts==='minimax'?'MiniMax TTS':'VoxCPM';
+      const quota=state.status.quota||{free_limit:5,free_remaining:5,credits:0,can_chat:true};
+      $('statusDot').classList.toggle('ready', ready && vox); $('statusText').textContent=ready?(vox?'文字与语音就绪':'文字就绪 · 语音离线'):'等待模型 Key';
+      const available=quota.available_total??((quota.free_remaining||0)+(quota.credits||0));
+      $('quotaText').textContent=quota.unlimited?'测试不限次数':(quota.credits>0?`可用 ${available} 次`:`免费 ${quota.free_remaining}/${quota.free_limit}`);
+      $('subtitle').textContent=state.persona==='kunkun'?`公开表达风格 · 事实 ${rag.chunks||0} · 口语 ${rag.style_examples||0}`:'公开表达风格 · 本地语音';
+      $('modelLabel').textContent=`${state.provider==='minimax'?'MiniMax':'DeepSeek'} · ${ready?'已配置':'未配置'} · 事实 ${rag.chunks||0} · 口语 ${rag.style_examples||0} · ${voiceName}${vox?'在线':'离线'}`;
+      $('keyHelp').style.display=ready?'none':'block';
+      $('sendBtn').disabled=state.busy||quota.can_chat===false;
+    }
+    function openPaywall(){ $('paywall').classList.add('open'); }
+    function closePaywall(){ $('paywall').classList.remove('open'); }
+    async function checkStatus(){ try{const r=await fetch('/status');state.status=await r.json();}catch{} updateStatusUI(); }
+    async function claimOwnerInvite() {
+      const params=new URLSearchParams(location.hash.replace(/^#/,''));
+      const token=params.get('owner');
+      if(!token)return;
+      window.history.replaceState(null,'',location.pathname+location.search);
+      try {
+        const r=await fetch('/claim-owner-invite',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({token})});
+        const data=await r.json();
+        if(!r.ok)throw new Error(data.error||'手机测试额度领取失败');
+        state.status.quota=data.quota;updateStatusUI();
+        alert('手机测试额度已开通：50 次');
+      } catch(e) { alert(e.message); }
+    }
+    async function send() {
+      const message=$('input').value.trim(); if(!message||state.busy)return;
+      if(state.status.quota?.can_chat===false){openPaywall();return;}
+      state.busy=true;$('sendBtn').disabled=true;$('input').value='';resize();addMessage('user',message,true);const typing=addTyping();
+      try {
+        const prior=history().slice(0,-1);
+        // The welcome message is rendered but intentionally not persisted. Send it as
+        // first-turn context so the model knows it has already introduced itself.
+        if(!prior.length) prior.push({role:'assistant',content:welcomes[state.persona]});
+        const r=await fetch('/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({persona:state.persona,provider:state.provider,message,history:prior})});
+        const data=await r.json();
+        if(data.quota){state.status.quota=data.quota;updateStatusUI();}
+        if(r.status===402||data.code==='payment_required'){typing.remove();openPaywall();return;}
+        if(!r.ok)throw new Error(data.error||'聊天请求失败'); typing.remove();
+        const row=addMessage('assistant',data.reply,true,data.sources||[]);
+        if($('autoSpeak').checked) row.querySelector('.speak').click();
+      } catch(e) { typing.querySelector('.typing').remove(); showInlineError(typing.querySelector('.bubble'),e.message); }
+      finally {state.busy=false;updateStatusUI();$('input').focus();}
+    }
+    function resize(){const el=$('input');el.style.height='auto';el.style.height=Math.min(el.scrollHeight,132)+'px';}
+
+    let mediaRecorder=null,recordingStream=null,recordingChunks=[],recordingTimer=null,transcribing=false,forceCaptureFallback=false;
+    function resetMic(){
+      clearTimeout(recordingTimer);recordingTimer=null;
+      $('micBtn').classList.remove('listening');$('micBtn').textContent='●';
+      $('input').placeholder='有问题，尽管问';
+      if(recordingStream){recordingStream.getTracks().forEach(track=>track.stop());recordingStream=null;}
+      mediaRecorder=null;
+    }
+    function preferredAudioType(){
+      if(!window.MediaRecorder)return '';
+      return ['audio/webm;codecs=opus','audio/mp4','audio/webm'].find(type=>MediaRecorder.isTypeSupported(type))||'';
+    }
+    async function uploadRecording(blob){
+      transcribing=true;$('micBtn').disabled=true;$('input').placeholder='正在识别语音…';
+      try{
+        const r=await fetch('/transcribe',{method:'POST',headers:{'Content-Type':blob.type||'application/octet-stream'},body:blob});
+        const data=await r.json();
+        if(!r.ok)throw new Error(data.error||'语音识别失败');
+        $('input').value=data.text||'';resize();
+        if($('input').value.trim())await send();
+      }catch(e){alert(e.message||'语音识别失败，请重试');}
+      finally{transcribing=false;$('micBtn').disabled=false;resetMic();}
+    }
+    function openSystemRecorder(){
+      $('audioCapture').value='';
+      $('audioCapture').click();
+    }
+    $('audioCapture').onchange=()=>{
+      const file=$('audioCapture').files?.[0];
+      if(file&&file.size)uploadRecording(file);
+    };
+    async function startRecording(){
+      // getUserMedia is unavailable on ordinary HTTP LAN origins. Mobile file
+      // capture still opens the phone's trusted system recorder and lets the
+      // same local Whisper endpoint transcribe the result.
+      if(forceCaptureFallback||!window.isSecureContext){openSystemRecorder();return;}
+      if(!navigator.mediaDevices?.getUserMedia||!window.MediaRecorder){
+        openSystemRecorder();return;
+      }
+      try{
+        recordingStream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true,autoGainControl:true}});
+        recordingChunks=[];const mimeType=preferredAudioType();
+        mediaRecorder=new MediaRecorder(recordingStream,mimeType?{mimeType}:undefined);
+        mediaRecorder.ondataavailable=e=>{if(e.data&&e.data.size)recordingChunks.push(e.data);};
+        mediaRecorder.onerror=e=>{alert(`录音失败：${e.error?.message||'未知错误'}`);resetMic();};
+        mediaRecorder.onstop=()=>{
+          const blob=new Blob(recordingChunks,{type:mediaRecorder?.mimeType||mimeType||'application/octet-stream'});
+          uploadRecording(blob);
+        };
+        mediaRecorder.start(250);$('micBtn').classList.add('listening');$('micBtn').textContent='■';
+        $('input').placeholder='正在录音，再点一次停止…';
+        recordingTimer=setTimeout(()=>{if(mediaRecorder?.state==='recording')mediaRecorder.stop();},45000);
+      }catch(e){
+        resetMic();
+        if(e.name==='NotAllowedError'){
+          forceCaptureFallback=true;
+          alert('浏览器没有授予网页麦克风权限。请再点一次麦克风，改用手机系统录音。');
+        }else alert(`无法开启麦克风：${e.message}`);
+      }
+    }
+    $('micBtn').title=window.isSecureContext?'语音输入：点击开始，再点一次停止':'语音输入：调用手机系统录音';
+    $('micBtn').onclick=()=>{
+      if(transcribing)return;
+      if(mediaRecorder?.state==='recording')mediaRecorder.stop();else startRecording();
+    };
+
+    $('sendBtn').onclick=send; $('input').oninput=resize; $('input').onkeydown=e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();send();}};
+    $('menuBtn').onclick=()=> $('drawer').classList.add('open'); $('closeDrawer').onclick=()=> $('drawer').classList.remove('open');
+    $('drawer').onclick=e=>{if(e.target===$('drawer'))$('drawer').classList.remove('open');};
+    $('provider').onchange=()=>{state.provider=$('provider').value;updateStatusUI();};
+    $('applySettings').onclick=()=>{state.persona=$('persona').value;state.provider=$('provider').value;persistSettings();render();$('drawer').classList.remove('open');};
+    $('clearChat').onclick=()=>{if(confirm('清空当前角色的本地聊天记录？')){state.histories[state.persona]=[];save();render();$('drawer').classList.remove('open');}};
+    $('closePaywall').onclick=closePaywall;
+    $('paywall').onclick=e=>{if(e.target===$('paywall'))closePaywall();};
+    async function boot(){render();await checkStatus();await claimOwnerInvite();}
+    boot();
+  </script>
+</body>
+</html>

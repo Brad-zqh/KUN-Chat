@@ -1,0 +1,21 @@
+Talk to Fengge
+Copyright 2026 Leaf (YeJe-cpu)
+
+This project includes code that extends the LiveKit Agents framework.
+
+---
+
+LiveKit Agents
+Copyright 2023 LiveKit, Inc.
+Licensed under the Apache License, Version 2.0
+https://github.com/livekit/agents
+
+---
+
+This project also uses or references the following open-source projects
+(not bundled in this repository — installed separately or called via API):
+
+- VoxCPM (Apache-2.0) — https://github.com/OpenBMB/VoxCPM
+- OpenViking (AGPL-3.0) — https://github.com/volcengine/OpenViking
+- Nuwa Skill (MIT) — https://github.com/alchaincyf/nuwa-skill
+- Fengge Skill (MIT) — https://github.com/YixiaJack/feng-ge-skill
