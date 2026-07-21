@@ -64,6 +64,26 @@ a separately hosted backend with server-side environment variables. Never put
 provider secrets into the browser bundle or GitHub Pages settings exposed to
 client code.
 
+## Automatic GitHub synchronization
+
+On Windows, install the fail-closed five-minute sync task once:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\install-auto-sync.ps1
+```
+
+The task pulls fast-forward remote changes, stages only the documented code
+paths, rejects credentials and runtime/media files, runs the unit tests, then
+commits and pushes `main`. Conflicts or failed tests stop synchronization
+without force-pushing. Logs are written to
+`%LOCALAPPDATA%\KUN-Chat\github-sync.log`.
+
+To remove it:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\uninstall-auto-sync.ps1
+```
+
 ## Tests
 
 ```powershell
