@@ -221,18 +221,34 @@
     function persistSettings() { localStorage.setItem('persona', state.persona); localStorage.setItem('provider', state.provider); }
     function escapeHtml(s) { return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 
-    function splitSpeech(text, maxChars=26) {
+    function splitSpeech(text, maxChars=48) {
       const sentences = text.match(/[^。！？!?；;\n]+[。！？!?；;\n]?/g) || [text];
-      const chunks = [];
+      const pieces = [];
       for (const sentence of sentences) {
         let rest = sentence.trim();
         while (rest.length > maxChars) {
           let cut = -1;
           for (const mark of ['，','、',',','：',':']) cut = Math.max(cut, rest.lastIndexOf(mark, maxChars));
           const end = cut >= 10 ? cut + 1 : maxChars;
-          chunks.push(rest.slice(0, end).trim()); rest = rest.slice(end).trim();
+          pieces.push(rest.slice(0, end).trim()); rest = rest.slice(end).trim();
         }
-        if (rest) chunks.push(rest);
+        if (rest) pieces.push(rest);
+      }
+      const chunks = [];
+      for (const piece of pieces) {
+        const previous = chunks[chunks.length - 1];
+        const joiner = previous && /[A-Za-z0-9]$/.test(previous) && /^[A-Za-z0-9]/.test(piece) ? ' ' : '';
+        if (previous && previous.length + joiner.length + piece.length <= maxChars) chunks[chunks.length - 1] = previous + joiner + piece;
+        else chunks.push(piece);
+      }
+      if (chunks[0] && chunks[0].length > 22) {
+        let firstCut = -1;
+        for (const mark of ['，','、',',','：',':']) firstCut = Math.max(firstCut, chunks[0].lastIndexOf(mark, 22));
+        if (firstCut >= 10) {
+          const first = chunks.shift();
+          chunks.unshift(first.slice(firstCut + 1).trim());
+          chunks.unshift(first.slice(0, firstCut + 1).trim());
+        }
       }
       return chunks.length ? chunks : [text];
     }
@@ -253,8 +269,13 @@
         pending.set(index, task); return task;
       }
 
+      function prefetchFrom(index, count=3) {
+        for (let i=index; i<Math.min(segments.length,index+count); i++) loadSegment(i).catch(() => {});
+      }
+
       async function playSegment(index) {
         btn.textContent = index === 0 ? `正在生成第 1/${segments.length} 句…` : `衔接第 ${index+1}/${segments.length} 句…`;
+        prefetchFrom(index, 3);
         const audio = await loadSegment(index); wrap.audio = audio;
         if (state.audio && state.audio !== audio) state.audio.pause();
         state.audio = audio; wrap.index = index;
@@ -265,7 +286,7 @@
             try { await playSegment(index + 1); } catch(e) { showInlineError(wrap.parentElement,e.message);btn.textContent='◖)) 重试'; }
           } else { wrap.done=true; btn.textContent='◖)) 重播'; progress.style.width='100%'; duration.textContent=`${segments.length}/${segments.length}`; }
         };
-        if (index + 1 < segments.length) loadSegment(index + 1).catch(() => {});
+        prefetchFrom(index + 1, 3);
         await audio.play(); btn.textContent='Ⅱ 停止';
       }
 
