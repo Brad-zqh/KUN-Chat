@@ -5,6 +5,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <title>KUN Chat</title>
   <link rel="preload" as="image" href="/assets/kun-avatar-ai-v1.png" />
+  <link rel="preload" as="image" href="/assets/fengge-avatar.jpg" />
+  <link rel="preload" as="image" href="/assets/linqingxia-avatar.jpg" />
+  <link rel="preload" as="image" href="/assets/tulei-avatar.jpg" />
   <style>
     :root {
       color-scheme: light;
@@ -253,8 +256,13 @@
     };
     const names = { kunkun: '坤坤', fengge: '峰哥', linqingxia: '林青霞', tulei: '涂磊' };
     const realNames = { kunkun: '蔡徐坤', fengge: '峰哥', linqingxia: '林青霞', tulei: '涂磊' };
-    const initials = { fengge:'峰', linqingxia:'林', tulei:'涂' };
     const KUN_AVATAR_SRC = '/assets/kun-avatar-ai-v1.png';
+    const AVATARS = {
+      kunkun: KUN_AVATAR_SRC,
+      fengge: '/assets/fengge-avatar.jpg',
+      linqingxia: '/assets/linqingxia-avatar.jpg',
+      tulei: '/assets/tulei-avatar.jpg'
+    };
     const welcomes = {
       kunkun: '你好，我是坤坤。想聊音乐、舞台、创作，或者最近的状态，都可以。',
       fengge: '有什么问题你就问。先说明一下，这是根据公开表达资料设计的 AI 角色，不是峰哥本人。',
@@ -359,9 +367,7 @@
         .trim();
     }
     function avatarMarkup() {
-      return state.persona==='kunkun'
-        ? `<div class="avatar kun-avatar"><img src="${KUN_AVATAR_SRC}" alt="KUN Chat 动漫头像" /></div>`
-        : `<div class="avatar">${initials[state.persona]||'AI'}</div>`;
+      return `<div class="avatar kun-avatar"><img src="${AVATARS[state.persona]||KUN_AVATAR_SRC}" alt="${names[state.persona]||'AI'}数字人动漫头像" /></div>`;
     }
 
     function sourceTools(sources=[]) {
@@ -390,9 +396,9 @@
     function addTyping() { const row=document.createElement('div');row.className='row assistant';row.innerHTML=`${avatarMarkup()}<div class="bubble"><span class="typing"><i></i><i></i><i></i></span></div>`;$('messages').appendChild(row);return row; }
     function render() {
       $('messages').innerHTML=''; $('title').textContent=names[state.persona];
-      $('topAvatar').classList.toggle('kun-avatar', state.persona==='kunkun');
-      $('topAvatar').innerHTML = state.persona==='kunkun' ? `<img src="${KUN_AVATAR_SRC}" alt="KUN Chat 动漫头像" />` : (initials[state.persona]||'AI');
-      $('topAvatar').style.background = state.persona==='kunkun' ? '' : 'radial-gradient(circle at 32% 25%,#d8b395,#714329 45%,#21120d 100%)';
+      $('topAvatar').classList.add('kun-avatar');
+      $('topAvatar').innerHTML = `<img src="${AVATARS[state.persona]||KUN_AVATAR_SRC}" alt="${names[state.persona]||'AI'}数字人动漫头像" />`;
+      $('topAvatar').style.background = '';
       $('personaNotice').textContent=`AI 同人角色 · 非${realNames[state.persona]||'真人'}本人或相关团队`;
       const items=history(); if(!items.length) addMessage('assistant',welcomes[state.persona]); else items.forEach(x=>addMessage(x.role,x.content,false,x.sources||[]));
       $('persona').value=state.persona; $('provider').value=state.provider; updateStatusUI();

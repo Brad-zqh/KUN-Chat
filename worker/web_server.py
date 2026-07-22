@@ -609,19 +609,29 @@ def _synthesize_wav(persona: str, text: str) -> bytes:
     if persona == "fengge":
         reference = PROJECT_ROOT / "assets" / "voice_samples" / "fengge_clean.wav"
         transcript = PROJECT_ROOT / "assets" / "voice_samples" / "fengge_clean.txt"
-        encoded = base64.b64encode(reference.read_bytes()).decode("ascii")
-        payload.update(
-            {
-                "ref_audio_wav_base64": encoded,
-                "ref_audio_wav_format": "wav",
-                "prompt_wav_base64": encoded,
-                "prompt_wav_format": "wav",
-                "prompt_text": transcript.read_text(encoding="utf-8").strip(),
-            }
-        )
+        if reference.exists() and transcript.exists():
+            encoded = base64.b64encode(reference.read_bytes()).decode("ascii")
+            payload.update(
+                {
+                    "ref_audio_wav_base64": encoded,
+                    "ref_audio_wav_format": "wav",
+                    "prompt_wav_base64": encoded,
+                    "prompt_wav_format": "wav",
+                    "prompt_text": transcript.read_text(encoding="utf-8").strip(),
+                }
+            )
+        else:
+            designs = json.loads(
+                (PROJECT_ROOT / "voice-designs.json").read_text(encoding="utf-8")
+            )
+            payload["target_text"] = f"({designs[persona]}){text}"
     else:
-        designs = json.loads((PROJECT_ROOT / "voice-designs.json").read_text(encoding="utf-8"))
-        payload["target_text"] = f"({designs['kunkun']}){text}"
+        designs = json.loads(
+            (PROJECT_ROOT / "voice-designs.json").read_text(encoding="utf-8")
+        )
+        if persona not in designs:
+            raise RuntimeError(f"voice-designs.json 缺少 {persona} 的原创数字人声线描述")
+        payload["target_text"] = f"({designs[persona]}){text}"
 
     request = urllib.request.Request(
         f"{os.getenv('VOXCPM_URL', 'http://127.0.0.1:8000').rstrip('/')}/generate",
