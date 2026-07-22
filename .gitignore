@@ -47,3 +47,6 @@ checkpoints/
 .cursor/
 .claude/
 *.bak*
+# Public Sites source is maintained in its own repository.
+/public-site/
+/kun-chat-public-site*.tar.gz

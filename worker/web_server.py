@@ -447,8 +447,10 @@ async def _chat_reply(
 
     sources: list[dict] = []
     messages = [{"role": "system", "content": build_system_prompt(persona)}]
-    if persona == "kunkun":
-        style_context = rag_style_context_for(message, limit=4, max_chars=1100)
+    if persona in SUPPORTED_PERSONAS:
+        style_context = rag_style_context_for(
+            message, limit=4, max_chars=1100, persona=persona
+        )
         if style_context:
             messages.append(
                 {
@@ -467,7 +469,9 @@ async def _chat_reply(
                     ),
                 }
             )
-        rag_context, sources = rag_context_for(message, limit=5, max_chars=3600)
+        rag_context, sources = rag_context_for(
+            message, limit=5, max_chars=3600, persona=persona
+        )
         if rag_context:
             messages.append(
                 {
@@ -788,7 +792,10 @@ class Handler(SimpleHTTPRequestHandler):
                 query = str(data.get("query", "")).strip()
                 if not query:
                     raise ValueError("query is required")
-                hits = rag_search(query, limit=int(data.get("limit", 5)))
+                persona = str(data.get("persona", "kunkun")).strip().lower()
+                hits = rag_search(
+                    query, limit=int(data.get("limit", 5)), persona=persona
+                )
                 self._send_json(
                     200,
                     {
@@ -942,7 +949,7 @@ class Handler(SimpleHTTPRequestHandler):
                 for persona in SUPPORTED_PERSONAS
             }
             try:
-                raw_rag = rag_status()
+                raw_rag = rag_status("kunkun")
                 rag = {
                     "sources": int(raw_rag.get("sources", 0)),
                     "chunks": int(raw_rag.get("chunks", 0)),
@@ -952,6 +959,17 @@ class Handler(SimpleHTTPRequestHandler):
                 }
             except Exception as exc:
                 rag = {"sources": 0, "chunks": 0, "error": str(exc)}
+            persona_rag = {}
+            for persona in SUPPORTED_PERSONAS:
+                try:
+                    persona_rag[persona] = rag_status(persona)
+                except Exception as exc:
+                    persona_rag[persona] = {
+                        "sources": 0,
+                        "chunks": 0,
+                        "style_examples": 0,
+                        "error": str(exc),
+                    }
             self._send_json(
                 200,
                 {
@@ -974,6 +992,7 @@ class Handler(SimpleHTTPRequestHandler):
                         "mode": "original_only",
                     },
                     "rag": rag,
+                    "persona_rag": persona_rag,
                     "quota": _quota_status(visitor_id),
                 },
             )

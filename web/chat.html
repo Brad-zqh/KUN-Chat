@@ -249,7 +249,7 @@
       persona: localStorage.getItem('persona') || 'kunkun',
       provider: localStorage.getItem('provider') || 'deepseek',
       histories: JSON.parse(localStorage.getItem('chat-histories') || '{}'),
-      status: { providers: {}, voxcpm: false, tts_provider:'voxcpm', music:{ready:false,model:'music-3.0-free',daily_limit:3}, rag: {sources:0,chunks:0}, quota:{free_limit:5,free_used:0,free_remaining:5,credits:0,can_chat:true,payment_enabled:false} }, busy: false, audio: null
+      status: { providers: {}, voxcpm: false, tts_provider:'voxcpm', music:{ready:false,model:'music-3.0-free',daily_limit:3}, rag: {sources:0,chunks:0}, persona_rag:{}, quota:{free_limit:5,free_used:0,free_remaining:5,credits:0,can_chat:true,payment_enabled:false} }, busy: false, audio: null
     };
     const names = { kunkun: '坤坤', fengge: '峰哥', linqingxia: '林青霞', tulei: '涂磊' };
     const realNames = { kunkun: '蔡徐坤', fengge: '峰哥', linqingxia: '林青霞', tulei: '涂磊' };
@@ -400,14 +400,14 @@
     function updateStatusUI() {
       const ready=!!state.status.providers[state.provider];
       const vox=(state.status.voice_ready||{})[state.persona] ?? state.status.voxcpm;
-      const rag=state.status.rag||{sources:0,chunks:0};
+      const rag=(state.status.persona_rag||{})[state.persona]||state.status.rag||{sources:0,chunks:0,style_examples:0};
       const personaTts=(state.status.tts_providers||{})[state.persona]||state.status.tts_provider;
       const voiceName=personaTts==='minimax'?'MiniMax TTS':'VoxCPM';
       const quota=state.status.quota||{free_limit:5,free_remaining:5,credits:0,can_chat:true};
       $('statusDot').classList.toggle('ready', ready && vox); $('statusText').textContent=ready?(vox?'文字与语音就绪':'文字就绪 · 语音离线'):'等待模型 Key';
       const available=quota.available_total??((quota.free_remaining||0)+(quota.credits||0));
       $('quotaText').textContent=quota.unlimited?'测试不限次数':(quota.credits>0?`可用 ${available} 次`:`免费 ${quota.free_remaining}/${quota.free_limit}`);
-      $('subtitle').textContent=state.persona==='kunkun'?`公开表达风格 · 事实 ${rag.chunks||0} · 口语 ${rag.style_examples||0}`:'公开表达资料 · 人物专属 RAG 建设中';
+      $('subtitle').textContent=`公开表达资料 · 事实 ${rag.chunks||0} · 口语 ${rag.style_examples||0}`;
       $('modelLabel').textContent=`${state.provider==='minimax'?'MiniMax':'DeepSeek'} · ${ready?'已配置':'未配置'} · 事实 ${rag.chunks||0} · 口语 ${rag.style_examples||0} · ${voiceName}${vox?'在线':'离线'}`;
       $('keyHelp').style.display=ready?'none':'block';
       const musicReady=!!state.status.music?.ready;

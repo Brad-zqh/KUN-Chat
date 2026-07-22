@@ -6,12 +6,12 @@
 
 | 角色 | 对话状态 | 事实 RAG | 风格 RAG | 语音状态 |
 | --- | --- | ---: | ---: | --- |
-| 坤坤 | 生产可用 | 105 sources / 117 chunks | 424 examples | 本地已配置；授权状态仍由独立门禁管理 |
-| 峰哥 | 安全人格骨架已重做 | 建设中 | 建设中 | 未配置人物专属 Voice ID |
-| 林青霞 | 安全人格骨架已建立 | 建设中 | 建设中 | 未配置人物专属 Voice ID |
-| 涂磊 | 安全人格骨架已建立 | 建设中 | 建设中 | 未配置人物专属 Voice ID |
+| 坤坤 | 生产可用 | 107 sources / 119 chunks | 424 examples | 本地已配置；授权状态仍由独立门禁管理 |
+| 峰哥 | 最小生产集已接入 | 3 documents | 1 example | 未配置人物专属 Voice ID |
+| 林青霞 | 最小生产集已接入 | 4 documents | 1 example | 未配置人物专属 Voice ID |
+| 涂磊 | 最小生产集已接入 | 5 documents | 2 examples | 未配置人物专属 Voice ID |
 
-2026-07-22 第一轮公开资料发现已完成：三人合计 21 个来源、17 条 facts 候选、16 条 style 候选、18 条 pending、15 条 rejected，当前 production 仍为 0。所有候选均须继续经过说话人和语义归属双门禁；不能因为已经登记或能够访问就直接写入生产 RAG。
+2026-07-22 第二轮生产审核已完成：峰哥、林青霞、涂磊合计 12 条 production documents 与 4 条 production style examples，所选生产范围 pending=0。发现库仍有 18 条未审核候选并继续隔离，不得写入生产 RAG。所有人物的 `training_permission=unverified`，`audio_training_eligible=false`。
 
 候选库总览：`D:\OneDrive\LLMs\persona-material\README.md`；机器可读状态：`D:\OneDrive\LLMs\persona-material\STATUS.json`。
 
@@ -147,8 +147,8 @@ GitHub Pages 只能托管静态页面，不能运行当前 Python 后端，也�
 
 ## 6. 当前下一步
 
-1. 等待公开资料整理任务产出峰哥、林青霞、涂磊的来源清单和待审材料。
-2. 分人物完成双门禁，建立独立 facts/style 数据库。
-3. 将非坤坤角色从“人格骨架”升级为人物专属双 RAG。
-4. 选择云后端与域名，部署 API；随后再发布 GitHub Pages 或其他静态前端。
-5. 在公网测试阶段再启用账号、免费次数、充值和支付回调，避免把本地无限测试规则带到公网。
+1. 继续扩充三人的双审 production 资料，但保持人物库严格隔离。
+2. 公网首版使用服务端密钥、D1 匿名额度和 HTTPS；不把 API 密钥下发到浏览器。
+3. 完成公网四角色事实/风格数据同步与端到端手机实测。
+4. 在公网测试稳定后加入正式账号、充值与支付回调。
+5. 只有取得可核验的独立声音授权后，才为对应人物启用专属 Voice ID。

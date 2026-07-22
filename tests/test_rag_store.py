@@ -1,5 +1,6 @@
 import json
 import os
+import sqlite3
 import tempfile
 import time
 import unittest
@@ -10,6 +11,42 @@ from worker import rag_store
 
 
 class RagStoreTest(unittest.TestCase):
+    def test_reviewed_persona_database_is_read_without_reindexing(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            database = Path(tmp) / "fengge.sqlite3"
+            conn = sqlite3.connect(database)
+            conn.executescript(
+                """
+                CREATE TABLE documents (
+                    record_id TEXT, persona_id TEXT, kind TEXT, text TEXT,
+                    source_title TEXT, source_url TEXT, publisher TEXT,
+                    published_date TEXT, speaker_gate TEXT, semantic_gate TEXT,
+                    locator_json TEXT, training_permission TEXT,
+                    audio_training_eligible INTEGER
+                );
+                CREATE TABLE style_examples (
+                    record_id TEXT, persona_id TEXT, text TEXT, source_url TEXT,
+                    style_tags_json TEXT, locator_json TEXT,
+                    training_permission TEXT
+                );
+                INSERT INTO documents VALUES (
+                    'f1','fengge','fact','公开表达中的程序员经历','公开访谈',
+                    'https://example.com','publisher','2026','approved_publisher',
+                    'attributed_fact','{}','unverified',0
+                );
+                INSERT INTO style_examples VALUES (
+                    's1','fengge','先把问题讲清楚，再谈结论。','https://example.com',
+                    '["direct"]','{}','unverified'
+                );
+                """
+            )
+            conn.commit()
+            conn.close()
+            with patch.dict(os.environ, {"FENGGE_RAG_DB": str(database)}, clear=False):
+                self.assertEqual(rag_store.status("fengge")["sources"], 1)
+                self.assertEqual(len(rag_store.search("程序员", persona="fengge")), 1)
+                self.assertEqual(len(rag_store.style_search("问题", persona="fengge")), 1)
+
     def test_incremental_index_and_search(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp) / "kun-material"

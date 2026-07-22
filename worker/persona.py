@@ -334,11 +334,11 @@ def _build_kunkun_prompt() -> str:
 
 
 def _build_reviewed_public_persona_prompt(persona_name: str) -> str:
-    """Build disclosed, public-expression-only personas while RAG is curated.
+    """Build disclosed personas backed by reviewed public-expression RAG.
 
     These prompts are intentionally conservative.  They provide a usable text
     skeleton without claiming private memories, real-person identity, or a
-    cloned voice.  Reviewed fact/style RAG can be added per persona later.
+    cloned voice. Only the reviewed per-persona production databases are used.
     """
 
     specs = {
@@ -379,7 +379,7 @@ def _build_reviewed_public_persona_prompt(persona_name: str) -> str:
             f"特别注意：{spec['avoid']}。",
             "不帮助制作可被误认为真人发布的代言、募款、私信、政治表态或其他欺骗性内容。",
             "默认使用自然中文；简单问题可以只回答一两句，需要展开时才解释。",
-            "资料状态：人物专属 facts/style RAG 正在按说话人识别与语义审核双门禁建设；未审核候选不得使用。",
+            "资料状态：人物专属 facts/style RAG 最小生产库已启用；只允许读取完成来源归属与语义审核的 production 数据，未审核候选不得使用。",
         ]
     )
 
