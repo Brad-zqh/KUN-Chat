@@ -34,6 +34,15 @@ class RagStoreTest(unittest.TestCase):
                     'https://example.com','publisher','2026','approved_publisher',
                     'attributed_fact','{}','unverified',0
                 );
+                INSERT INTO documents VALUES (
+                    'sdoc','fengge','style','直播里提到的个人口语片段','公开直播',
+                    'https://example.com/live','publisher','2026','approved_clip',
+                    'own_speech','{}','unverified',0
+                );
+                INSERT INTO style_examples VALUES (
+                    's0','fengge','今天先随便聊点别的。','https://example.com',
+                    '["casual"]','{}','unverified'
+                );
                 INSERT INTO style_examples VALUES (
                     's1','fengge','先把问题讲清楚，再谈结论。','https://example.com',
                     '["direct"]','{}','unverified'
@@ -43,9 +52,18 @@ class RagStoreTest(unittest.TestCase):
             conn.commit()
             conn.close()
             with patch.dict(os.environ, {"FENGGE_RAG_DB": str(database)}, clear=False):
-                self.assertEqual(rag_store.status("fengge")["sources"], 1)
+                reviewed_status = rag_store.status("fengge")
+                self.assertEqual(reviewed_status["sources"], 2)
+                self.assertEqual(reviewed_status["facts"], 1)
+                self.assertEqual(reviewed_status["style_documents"], 1)
                 self.assertEqual(len(rag_store.search("程序员", persona="fengge")), 1)
-                self.assertEqual(len(rag_store.style_search("问题", persona="fengge")), 1)
+                fact_hits = rag_store.search("个人口语片段", persona="fengge")
+                self.assertEqual(len(fact_hits), 1)
+                self.assertEqual(fact_hits[0].path, "fengge:f1")
+                self.assertNotIn("个人口语片段", fact_hits[0].content)
+                style_hits = rag_store.style_search("问题", limit=1, persona="fengge")
+                self.assertEqual(len(style_hits), 1)
+                self.assertEqual(style_hits[0].source_id, "s1")
 
     def test_incremental_index_and_search(self):
         with tempfile.TemporaryDirectory() as tmp:

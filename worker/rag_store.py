@@ -647,6 +647,8 @@ def status(persona: str = "kunkun") -> dict:
             counts = conn.execute(
                 """
                 SELECT (SELECT count(*) FROM documents) AS documents,
+                       (SELECT count(*) FROM documents WHERE kind = 'fact') AS facts,
+                       (SELECT count(*) FROM documents WHERE kind = 'style') AS style_documents,
                        (SELECT count(*) FROM style_examples) AS style_examples
                 """
             ).fetchone()
@@ -655,6 +657,8 @@ def status(persona: str = "kunkun") -> dict:
                 "database": str(db_path(persona)),
                 "sources": int(counts["documents"]),
                 "chunks": int(counts["documents"]),
+                "facts": int(counts["facts"]),
+                "style_documents": int(counts["style_documents"]),
                 "style_examples": int(counts["style_examples"]),
                 "source_policy": "reviewed_production_only",
                 "training_permission": TRAINING_PERMISSION,
@@ -700,7 +704,8 @@ def _search_reviewed_persona(query: str, *, limit: int, persona: str) -> list[Ra
             """
             SELECT record_id, text, source_title, source_url, kind
             FROM documents
-            WHERE semantic_gate IN ('attributed_fact', 'own_speech')
+            WHERE kind = 'fact'
+              AND semantic_gate = 'attributed_fact'
               AND lower(speaker_gate) NOT LIKE '%pending%'
               AND lower(speaker_gate) NOT LIKE '%reject%'
             """
@@ -736,7 +741,11 @@ def _style_search_reviewed_persona(
             ORDER BY record_id
             """
         ).fetchall()
-        ranked = sorted(rows, key=lambda row: _lexical_score(query, row["text"]))
+        ranked = sorted(
+            rows,
+            key=lambda row: _lexical_score(query, row["text"]),
+            reverse=True,
+        )
         hits: list[StyleHit] = []
         for row in ranked[: max(1, min(limit, 8))]:
             try:

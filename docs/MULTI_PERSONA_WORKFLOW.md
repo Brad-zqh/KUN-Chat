@@ -7,11 +7,13 @@
 | 角色 | 对话状态 | 事实 RAG | 风格 RAG | 语音状态 |
 | --- | --- | ---: | ---: | --- |
 | 坤坤 | 生产可用 | 107 sources / 119 chunks | 424 examples | 本地已配置；授权状态仍由独立门禁管理 |
-| 峰哥 | 最小生产集已接入 | 3 documents | 1 example | 未配置人物专属 Voice ID |
+| 峰哥 | B站直播切片第一批已接入 | 2 fact documents | 50 style examples | MiniMax 原创数字人声线；非真人声纹克隆 |
 | 林青霞 | 最小生产集已接入 | 4 documents | 1 example | 未配置人物专属 Voice ID |
 | 涂磊 | 最小生产集已接入 | 5 documents | 2 examples | 未配置人物专属 Voice ID |
 
-2026-07-22 第二轮生产审核已完成：峰哥、林青霞、涂磊合计 12 条 production documents 与 4 条 production style examples，所选生产范围 pending=0。发现库仍有 18 条未审核候选并继续隔离，不得写入生产 RAG。所有人物的 `training_permission=unverified`，`audio_training_eligible=false`。
+2026-07-22 峰哥 B 站直播切片第一批已增量接入独立生产库：52 documents（2 facts + 50 style），其中 50 条 style examples；应用状态将每条生产 document 作为一个可检索 chunk，因此报告为 52 documents / 52 chunks / 50 style examples。`persona_id=fengge` 时只读取 `D:\OneDrive\LLMs\persona-material\fengge\production\fengge-rag.sqlite3`。其余 510 个未完成双门禁的窗口继续隔离，不得进入生产。
+
+峰哥 style 记录只用于表达风格与归属观点，不得作为客观事实检索；Facts RAG 仅查询 `kind=fact AND semantic_gate=attributed_fact`。当前 `production_scope_pending=0`、`training_permission=unverified`、`audio_training_eligible=false`、声纹训练关闭。
 
 候选库总览：`D:\OneDrive\LLMs\persona-material\README.md`；机器可读状态：`D:\OneDrive\LLMs\persona-material\STATUS.json`。
 
