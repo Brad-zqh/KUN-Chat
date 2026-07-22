@@ -177,7 +177,7 @@
     </header>
 
     <main id="main">
-      <div class="notice">AI 同人角色 · 非蔡徐坤本人或工作室</div>
+      <div class="notice" id="personaNotice">AI 同人角色 · 非真人本人或相关团队</div>
       <div class="messages" id="messages"></div>
     </main>
 
@@ -199,8 +199,8 @@
     <aside class="drawer" role="dialog" aria-modal="true">
       <button class="icon-btn" id="closeDrawer" aria-label="关闭">×</button>
       <h2>聊天设置</h2>
-      <p>聊天记录只保存在这个浏览器本机。角色可以随时切换，两个角色的对话分别保存。</p>
-      <div class="field"><label for="persona">角色</label><select id="persona"><option value="kunkun">坤坤 AI 同人</option><option value="fengge">峰哥 AI</option></select></div>
+      <p>聊天记录只保存在这个浏览器本机。角色可以随时切换，每个角色的对话分别保存。</p>
+      <div class="field"><label for="persona">角色</label><select id="persona"><option value="kunkun">坤坤</option><option value="fengge">峰哥</option><option value="linqingxia">林青霞</option><option value="tulei">涂磊</option></select></div>
       <div class="field"><label for="provider">文字模型</label><select id="provider"><option value="minimax">MiniMax M2.7</option><option value="deepseek">DeepSeek Chat</option></select></div>
       <p class="key-help" id="keyHelp">文字模型尚未配置 API Key。请在项目的 .env.local 中填写所选模型的 Key，然后重启网页服务。</p>
       <button class="action primary" id="applySettings">应用设置</button>
@@ -251,11 +251,15 @@
       histories: JSON.parse(localStorage.getItem('chat-histories') || '{}'),
       status: { providers: {}, voxcpm: false, tts_provider:'voxcpm', music:{ready:false,model:'music-3.0-free',daily_limit:3}, rag: {sources:0,chunks:0}, quota:{free_limit:5,free_used:0,free_remaining:5,credits:0,can_chat:true,payment_enabled:false} }, busy: false, audio: null
     };
-    const names = { kunkun: 'KUN Chat', fengge: '峰哥 AI' };
+    const names = { kunkun: '坤坤', fengge: '峰哥', linqingxia: '林青霞', tulei: '涂磊' };
+    const realNames = { kunkun: '蔡徐坤', fengge: '峰哥', linqingxia: '林青霞', tulei: '涂磊' };
+    const initials = { fengge:'峰', linqingxia:'林', tulei:'涂' };
     const KUN_AVATAR_SRC = '/assets/kun-avatar-ai-v1.png';
     const welcomes = {
       kunkun: '你好，我是坤坤。想聊音乐、舞台、创作，或者最近的状态，都可以。',
-      fengge: '有什么问题你就问。我是峰哥 AI，不是峰哥本人；这个页面把聊天和本地语音朗读放到一起了。'
+      fengge: '有什么问题你就问。先说明一下，这是根据公开表达资料设计的 AI 角色，不是峰哥本人。',
+      linqingxia: '你好。可以聊电影、阅读、写作和公开的人生感悟。这里是基于公开资料设计的 AI 角色，不是林青霞本人。',
+      tulei: '你可以直接说问题。这里是根据公开节目与表达资料设计的 AI 角色，不是涂磊本人。'
     };
 
     function history() { return state.histories[state.persona] ||= []; }
@@ -357,7 +361,7 @@
     function avatarMarkup() {
       return state.persona==='kunkun'
         ? `<div class="avatar kun-avatar"><img src="${KUN_AVATAR_SRC}" alt="KUN Chat 动漫头像" /></div>`
-        : '<div class="avatar">峰</div>';
+        : `<div class="avatar">${initials[state.persona]||'AI'}</div>`;
     }
 
     function sourceTools(sources=[]) {
@@ -387,8 +391,9 @@
     function render() {
       $('messages').innerHTML=''; $('title').textContent=names[state.persona];
       $('topAvatar').classList.toggle('kun-avatar', state.persona==='kunkun');
-      $('topAvatar').innerHTML = state.persona==='kunkun' ? `<img src="${KUN_AVATAR_SRC}" alt="KUN Chat 动漫头像" />` : '峰';
+      $('topAvatar').innerHTML = state.persona==='kunkun' ? `<img src="${KUN_AVATAR_SRC}" alt="KUN Chat 动漫头像" />` : (initials[state.persona]||'AI');
       $('topAvatar').style.background = state.persona==='kunkun' ? '' : 'radial-gradient(circle at 32% 25%,#d8b395,#714329 45%,#21120d 100%)';
+      $('personaNotice').textContent=`AI 同人角色 · 非${realNames[state.persona]||'真人'}本人或相关团队`;
       const items=history(); if(!items.length) addMessage('assistant',welcomes[state.persona]); else items.forEach(x=>addMessage(x.role,x.content,false,x.sources||[]));
       $('persona').value=state.persona; $('provider').value=state.provider; updateStatusUI();
     }
@@ -402,7 +407,7 @@
       $('statusDot').classList.toggle('ready', ready && vox); $('statusText').textContent=ready?(vox?'文字与语音就绪':'文字就绪 · 语音离线'):'等待模型 Key';
       const available=quota.available_total??((quota.free_remaining||0)+(quota.credits||0));
       $('quotaText').textContent=quota.unlimited?'测试不限次数':(quota.credits>0?`可用 ${available} 次`:`免费 ${quota.free_remaining}/${quota.free_limit}`);
-      $('subtitle').textContent=state.persona==='kunkun'?`公开表达风格 · 事实 ${rag.chunks||0} · 口语 ${rag.style_examples||0}`:'公开表达风格 · 本地语音';
+      $('subtitle').textContent=state.persona==='kunkun'?`公开表达风格 · 事实 ${rag.chunks||0} · 口语 ${rag.style_examples||0}`:'公开表达资料 · 人物专属 RAG 建设中';
       $('modelLabel').textContent=`${state.provider==='minimax'?'MiniMax':'DeepSeek'} · ${ready?'已配置':'未配置'} · 事实 ${rag.chunks||0} · 口语 ${rag.style_examples||0} · ${voiceName}${vox?'在线':'离线'}`;
       $('keyHelp').style.display=ready?'none':'block';
       const musicReady=!!state.status.music?.ready;
@@ -462,7 +467,8 @@
         if(r.status===402||data.code==='payment_required'){typing.remove();openPaywall();return;}
         if(!r.ok)throw new Error(data.error||'聊天请求失败'); typing.remove();
         const row=addMessage('assistant',data.reply,true,data.sources||[]);
-        if($('autoSpeak').checked) row.querySelector('.speak').click();
+        const voiceReady=(state.status.voice_ready||{})[state.persona] ?? state.status.voxcpm;
+        if($('autoSpeak').checked && voiceReady) row.querySelector('.speak').click();
       } catch(e) { typing.querySelector('.typing').remove(); showInlineError(typing.querySelector('.bubble'),e.message); }
       finally {state.busy=false;updateStatusUI();$('input').focus();}
     }

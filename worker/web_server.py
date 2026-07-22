@@ -37,7 +37,7 @@ from worker.local_stt import transcribe as local_transcribe
 from worker.local_stt import warmup as warmup_local_stt
 from worker.minimax_music import available as minimax_music_available
 from worker.minimax_music import generate_original_song
-from worker.persona import build_system_prompt
+from worker.persona import PERSONA_REGISTRY, build_system_prompt
 from worker.rag_store import build_index as build_rag_index
 from worker.rag_store import context_for as rag_context_for
 from worker.rag_store import search as rag_search
@@ -46,6 +46,7 @@ from worker.rag_store import style_context_for as rag_style_context_for
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 WEB_DIR = PROJECT_ROOT / "web"
+SUPPORTED_PERSONAS = frozenset(PERSONA_REGISTRY)
 
 # 阶段 20 修复：web 是 nohup 后台拉，**不继承 shell env**，必须自己 load_dotenv
 # 否则 AGENT_NAME 走默认值 "talk-to-me-agent"，跟 worker 的 "talk-to-me-dev3" 不匹配，
@@ -427,8 +428,8 @@ def _tts_provider_for(persona: str) -> str:
 async def _chat_reply(
     persona: str, provider: str, message: str, history: list[dict]
 ) -> tuple[str, list[dict]]:
-    if persona not in {"fengge", "kunkun"}:
-        raise ValueError("persona must be fengge or kunkun")
+    if persona not in SUPPORTED_PERSONAS:
+        raise ValueError(f"persona must be one of: {', '.join(sorted(SUPPORTED_PERSONAS))}")
     if provider not in {"minimax", "deepseek"}:
         raise ValueError("provider must be minimax or deepseek")
 
@@ -503,8 +504,8 @@ async def _chat_reply(
 
 
 def _synthesize_wav(persona: str, text: str) -> bytes:
-    if persona not in {"fengge", "kunkun"}:
-        raise ValueError("persona must be fengge or kunkun")
+    if persona not in SUPPORTED_PERSONAS:
+        raise ValueError(f"persona must be one of: {', '.join(sorted(SUPPORTED_PERSONAS))}")
     text = _normalize_tts_text(text.strip()[:1200])
     if not text:
         raise ValueError("text is required")
@@ -517,8 +518,6 @@ def _synthesize_wav(persona: str, text: str) -> bytes:
     if tts_provider == "minimax":
         api_key = os.getenv("MINIMAX_API_KEY", "").strip()
         voice_id = os.getenv(f"MINIMAX_VOICE_ID_{persona.upper()}", "").strip()
-        if not voice_id:
-            voice_id = os.getenv("MINIMAX_VOICE_ID", "").strip()
         if not api_key:
             raise RuntimeError("MINIMAX_API_KEY 尚未配置")
         if not voice_id:
@@ -927,7 +926,7 @@ class Handler(SimpleHTTPRequestHandler):
                 voxcpm_ready = False
             tts_providers = {
                 persona: _tts_provider_for(persona)
-                for persona in ("fengge", "kunkun")
+                for persona in SUPPORTED_PERSONAS
             }
             voice_ready = {
                 persona: (
@@ -935,13 +934,12 @@ class Handler(SimpleHTTPRequestHandler):
                         os.getenv("MINIMAX_API_KEY", "").strip()
                         and (
                             os.getenv(f"MINIMAX_VOICE_ID_{persona.upper()}", "").strip()
-                            or os.getenv("MINIMAX_VOICE_ID", "").strip()
                         )
                     )
                     if tts_providers[persona] == "minimax"
                     else voxcpm_ready
                 )
-                for persona in ("fengge", "kunkun")
+                for persona in SUPPORTED_PERSONAS
             }
             try:
                 raw_rag = rag_status()

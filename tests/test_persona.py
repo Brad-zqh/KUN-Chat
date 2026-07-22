@@ -9,6 +9,18 @@ class PersonaTest(unittest.TestCase):
     def test_fengge_prompt_is_available(self):
         prompt = build_system_prompt("fengge")
         self.assertIn("峰哥", prompt)
+        self.assertIn("AI 同人角色", prompt)
+        self.assertIn("不是峰哥（峰哥亡命天涯）本人", prompt)
+        self.assertNotIn("你就是峰哥本人", prompt)
+
+    def test_new_public_personas_are_available_and_disclosed(self):
+        for persona, display in (("linqingxia", "林青霞"), ("tulei", "涂磊")):
+            with self.subTest(persona=persona):
+                prompt = build_system_prompt(persona)
+                self.assertIn(display, prompt)
+                self.assertIn("AI 同人角色", prompt)
+                self.assertIn("facts/style RAG", prompt)
+                self.assertIn("未审核候选不得使用", prompt)
 
     def test_kunkun_prompt_discloses_ai_identity(self):
         prompt = build_system_prompt("kunkun")
