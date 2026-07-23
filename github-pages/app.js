@@ -19,12 +19,12 @@
   function messages(){ return state.histories[state.persona] || []; }
   function setError(text=""){ $("errorBox").hidden=!text; $("errorBox").textContent=text; }
   function stopAudio(){ if(state.audio){state.audio.pause();state.audio.currentTime=0} state.audio=null;state.grant=null;render(); }
-  async function request(path, options={}, attempts=3){
+  async function request(path, options={}, attempts=5){
     let last;
     for(let i=0;i<attempts;i++){
       try{ const res=await fetch(apiBase+path,options); if(![409,502,503,504].includes(res.status)||i===attempts-1)return res; last=new Error(`HTTP ${res.status}`); }
       catch(error){ last=error;if(i===attempts-1)throw error; }
-      await new Promise((resolve)=>setTimeout(resolve,500*(i+1)));
+      await new Promise((resolve)=>setTimeout(resolve,700*(i+1)));
     }
     throw last;
   }
@@ -39,12 +39,12 @@
   async function send(){
     const text=$("messageInput").value.trim();if(!text||state.busy)return;setError();$("messageInput").value="";const history=messages().slice(-10);state.histories[state.persona]=[...messages(),{role:"user",content:text}];state.busy=true;render();
     try{const res=await request("/api/chat",{method:"POST",headers:{"content-type":"application/json","x-visitor-id":visitor},body:JSON.stringify({persona:state.persona,message:text,history})});const data=await res.json();if(!res.ok)throw new Error(data.error||"暂时无法回复");state.histories[state.persona].push({role:"assistant",content:data.reply,sources:data.sources||[],audioGrant:data.audioGrant||null});if(typeof data.remaining==="number")state.remaining=data.remaining;save();}
-    catch(error){setError(error.message==="Failed to fetch"?"网络未能连接到 API。大陆网络测试阶段可稍后重试；腾讯云函数接入后将切换到国内链路。":(error.message||"网络连接失败"));}finally{state.busy=false;render();}
+    catch(error){const networkFailure=/failed to fetch|load failed|networkerror/i.test(error.message||"");setError(networkFailure?"公网 API 暂时未连通，系统已自动重试。请刷新页面后再试；若大陆网络仍失败，可使用同源备用入口。":(error.message||"网络连接失败"));}finally{state.busy=false;render();}
   }
   async function speak(text,grant){
     if(state.grant===grant&&state.audio&&!state.audio.paused){stopAudio();return}stopAudio();setError();state.grant=grant;render();
     try{let url=state.cache.get(grant);if(!url){const res=await request("/api/synthesize",{method:"POST",headers:{"content-type":"application/json","x-visitor-id":visitor},body:JSON.stringify({persona:state.persona,text,grant})});if(!res.ok){const data=await res.json();throw new Error(data.error||"语音暂不可用")}url=URL.createObjectURL(await res.blob());state.cache.set(grant,url)}const audio=new Audio(url);state.audio=audio;audio.onended=stopAudio;audio.onerror=()=>{stopAudio();setError("音频播放失败，请重试")};await audio.play();}
-    catch(error){stopAudio();setError(error.message==="Failed to fetch"?"语音 API 连接失败，请稍后重试。":error.message);}
+    catch(error){stopAudio();const networkFailure=/failed to fetch|load failed|networkerror/i.test(error.message||"");setError(networkFailure?"语音 API 暂时未连通，请刷新页面后重试。":error.message);}
   }
   $("roleList").addEventListener("click",(e)=>{const button=e.target.closest("[data-role]");if(!button)return;stopAudio();state.persona=button.dataset.role;setError();render();});
   $("composer").addEventListener("submit",(e)=>{e.preventDefault();send()});$("messageInput").addEventListener("input",render);$("messageInput").addEventListener("keydown",(e)=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();send()}});
