@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#0d43ae">
+  <meta name="description" content="KUN Chat：基于审核公开资料的 AI 数字人对话实验。">
+  <title>KUN Chat · AI 数字人对话</title>
+  <link rel="icon" href="./assets/kun-avatar-ai-v1.png">
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <div class="app">
+    <header class="topbar">
+      <div class="brand"><span class="brand-mark">K</span><div><strong>KUN Chat</strong><small>AI 数字人 · 赛博同人对话平台</small></div></div>
+      <div class="top-actions">
+        <span id="serviceState" class="service"><i></i>连接服务中</span>
+        <button class="ghost" data-modal="accountModal">登录 / 注册</button>
+        <button class="primary" data-modal="creditsModal">充值</button>
+      </div>
+    </header>
+
+    <aside class="roles" aria-label="角色列表">
+      <p>数字人角色</p>
+      <div id="roleList"></div>
+      <div class="notice"><strong>公开表达实验</strong><br>人格 RAG 与数字人声线组合成 AI 角色。所有角色均非真人本人、团队或工作室。</div>
+    </aside>
+
+    <main class="chat">
+      <section class="chat-head">
+        <img id="heroAvatar" class="hero-avatar" alt="数字人头像">
+        <div><h1><span id="heroName"></span><em>数字人</em></h1><p id="heroNote"></p></div>
+        <button id="quotaButton" class="quota" data-modal="creditsModal">游客免费 6 次</button>
+      </section>
+      <div id="disclosure" class="disclosure"></div>
+      <section id="stream" class="stream" aria-live="polite"></section>
+      <div id="errorBox" class="error" hidden></div>
+      <form id="composer" class="composer">
+        <button id="micButton" class="mic" type="button" title="语音输入">●</button>
+        <textarea id="messageInput" rows="1" maxlength="1600" placeholder="有问题，尽管问"></textarea>
+        <button id="sendButton" class="send" type="submit" aria-label="发送">↑</button>
+      </form>
+      <footer>公开测试版：游客免费对话 6 次。密钥与 Voice ID 仅保存在服务端；本地版不受次数限制。</footer>
+    </main>
+  </div>
+
+  <dialog id="accountModal">
+    <form method="dialog" class="modal-card">
+      <button class="close" value="cancel" aria-label="关闭">×</button>
+      <span class="eyebrow">KUN ACCOUNT</span>
+      <h2>登录或注册</h2>
+      <p>账号系统将用于跨设备同步聊天记录、次数和余额。低成本测试阶段先使用浏览器访客身份。</p>
+      <label>手机号或邮箱<input disabled placeholder="账号服务接入腾讯云后开放"></label>
+      <button class="primary wide" value="cancel">暂未开放</button>
+    </form>
+  </dialog>
+
+  <dialog id="creditsModal">
+    <form method="dialog" class="modal-card credits">
+      <button class="close" value="cancel" aria-label="关闭">×</button>
+      <span class="eyebrow">CREDITS</span>
+      <h2>补充对话次数</h2>
+      <p>游客可免费对话 6 次。支付接入前不会产生扣款。</p>
+      <button class="pack" type="button"><b>¥9.9</b><span>60 次文字对话</span></button>
+      <button class="pack" type="button"><b>¥29.9</b><span>220 次文字对话</span></button>
+      <div class="pay-methods"><span>支付宝</span><span>微信支付</span></div>
+      <small>需要配置你的支付宝/微信商户号与服务端回调后才能启用真实付款。</small>
+    </form>
+  </dialog>
+
+  <script src="./config.js"></script>
+  <script src="./app.js" defer></script>
+</body>
+</html>
