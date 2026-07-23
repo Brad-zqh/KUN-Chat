@@ -645,27 +645,32 @@ def _synthesize_wav(persona: str, text: str) -> bytes:
         timeout = max(10, int(os.getenv("MINIMAX_TTS_TIMEOUT_SECONDS", "45")))
         transport = os.getenv("MINIMAX_TTS_TRANSPORT", "http").strip().lower()
         if transport == "websocket":
-            pcm = _minimax_websocket_pcm(
-                minimax_api_base,
-                api_key,
-                voice_id,
-                text,
-                model,
-                sample_rate,
-                speed,
-                timeout,
-            )
-            output = io.BytesIO()
-            with wave.open(output, "wb") as wav:
-                wav.setnchannels(1)
-                wav.setsampwidth(2)
-                wav.setframerate(sample_rate)
-                wav.writeframes(pcm)
-            result = output.getvalue()
-            if len(_SPEECH_CACHE) >= _SPEECH_CACHE_MAX_ITEMS:
-                _SPEECH_CACHE.pop(next(iter(_SPEECH_CACHE)))
-            _SPEECH_CACHE[cache_key] = result
-            return result
+            try:
+                pcm = _minimax_websocket_pcm(
+                    minimax_api_base,
+                    api_key,
+                    voice_id,
+                    text,
+                    model,
+                    sample_rate,
+                    speed,
+                    timeout,
+                )
+                output = io.BytesIO()
+                with wave.open(output, "wb") as wav:
+                    wav.setnchannels(1)
+                    wav.setsampwidth(2)
+                    wav.setframerate(sample_rate)
+                    wav.writeframes(pcm)
+                result = output.getvalue()
+                if len(_SPEECH_CACHE) >= _SPEECH_CACHE_MAX_ITEMS:
+                    _SPEECH_CACHE.pop(next(iter(_SPEECH_CACHE)))
+                _SPEECH_CACHE[cache_key] = result
+                return result
+            except (RuntimeError, TimeoutError, OSError):
+                # Long replies occasionally miss the WebSocket task-finished frame.
+                # Retry the same authorized Voice ID through MiniMax's HTTP endpoint.
+                transport = "http"
         if transport != "http":
             raise RuntimeError(
                 "MINIMAX_TTS_TRANSPORT must be 'http' or 'websocket'"
