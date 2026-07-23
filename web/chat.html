@@ -253,7 +253,7 @@
       persona: localStorage.getItem('persona') || 'kunkun',
       provider: localStorage.getItem('provider') || 'deepseek',
       histories: JSON.parse(localStorage.getItem('chat-histories') || '{}'),
-      status: { providers: {}, voxcpm: false, tts_provider:'voxcpm', music:{ready:false,model:'music-3.0-free',daily_limit:3}, rag: {sources:0,chunks:0}, persona_rag:{}, quota:{free_limit:5,free_used:0,free_remaining:5,credits:0,can_chat:true,payment_enabled:false} }, busy: false, audio: null
+      status: { providers: {}, voxcpm: false, tts_provider:'voxcpm', music:{ready:false,model:'music-3.0-free',daily_limit:3}, rag: {sources:0,chunks:0}, persona_rag:{}, quota:{free_limit:5,free_used:0,free_remaining:5,credits:0,can_chat:true,payment_enabled:false} }, busy: false, audio: null, audioOwner: null
     };
     const names = { kunkun: '坤坤', fengge: '峰哥', linqingxia: '青霞', tulei: '磊磊', laocan: '老残' };
     const realNames = { kunkun: '蔡徐坤', fengge: '峰哥', linqingxia: '林青霞', tulei: '涂磊', laocan: '老残' };
@@ -277,6 +277,37 @@
     function save() { localStorage.setItem('chat-histories', JSON.stringify(state.histories)); }
     function persistSettings() { localStorage.setItem('persona', state.persona); localStorage.setItem('provider', state.provider); }
     function escapeHtml(s) { return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+    async function fetchRetry(url, options={}, attempts=3) {
+      let lastError;
+      for (let attempt=0; attempt<attempts; attempt++) {
+        try {
+          const response=await fetch(url, options);
+          if (![409,502,503,504].includes(response.status) || attempt===attempts-1) return response;
+          lastError=new Error(`HTTP ${response.status}`);
+        } catch (error) {
+          lastError=error;
+          if (attempt===attempts-1) throw error;
+        }
+        await new Promise(resolve=>setTimeout(resolve, 500*(attempt+1)));
+      }
+      throw lastError || new Error('网络请求失败');
+    }
+
+    function stopCurrentAudio() {
+      if (state.audio) {
+        state.audio.pause();
+        state.audio.currentTime=0;
+        state.audio.onended=null;
+      }
+      if (state.audioOwner) {
+        const button=state.audioOwner.querySelector('.speak');
+        if (button) button.textContent='◖)) 朗读';
+        state.audioOwner.done=true;
+      }
+      state.audio=null;
+      state.audioOwner=null;
+    }
 
     function splitSpeech(text, maxChars=48) {
       const sentences = text.match(/[^。！？!?；;\n]+[。！？!?；;\n]?/g) || [text];
@@ -319,7 +350,7 @@
       function loadSegment(index) {
         if (pending.has(index)) return pending.get(index);
         const task = (async () => {
-          const res = await fetch('/synthesize', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ persona: voicePersona, text:segments[index] }) });
+          const res = await fetchRetry('/synthesize', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ persona: voicePersona, text:segments[index] }) });
           if (!res.ok) throw new Error((await res.json()).error || '语音生成失败');
           return new Audio(URL.createObjectURL(await res.blob()));
         })();
@@ -334,21 +365,21 @@
         btn.textContent = index === 0 ? `正在生成第 1/${segments.length} 句…` : `衔接第 ${index+1}/${segments.length} 句…`;
         prefetchFrom(index, 3);
         const audio = await loadSegment(index); wrap.audio = audio;
-        if (state.audio && state.audio !== audio) state.audio.pause();
-        state.audio = audio; wrap.index = index;
+        if (state.audio && state.audio !== audio) stopCurrentAudio();
+        state.audio = audio; state.audioOwner=wrap; wrap.index = index;
         audio.onloadedmetadata = () => duration.textContent = `${index+1}/${segments.length} · ${formatTime(audio.duration)}`;
         audio.ontimeupdate = () => progress.style.width = `${(index + (audio.currentTime / audio.duration || 0)) / segments.length * 100}%`;
         audio.onended = async () => {
           if (index + 1 < segments.length) {
             try { await playSegment(index + 1); } catch(e) { showInlineError(wrap.parentElement,e.message);btn.textContent='◖)) 重试'; }
-          } else { wrap.done=true; btn.textContent='◖)) 重播'; progress.style.width='100%'; duration.textContent=`${segments.length}/${segments.length}`; }
+          } else { wrap.done=true; btn.textContent='◖)) 重播'; progress.style.width='100%'; duration.textContent=`${segments.length}/${segments.length}`; if(state.audio===audio){state.audio=null;state.audioOwner=null;} }
         };
         prefetchFrom(index + 1, 3);
         await audio.play(); btn.textContent='Ⅱ 停止';
       }
 
       btn.onclick = async () => {
-        if (wrap.audio && !wrap.audio.paused) { wrap.audio.pause(); btn.textContent = '◖)) 继续'; return; }
+        if (wrap.audio && !wrap.audio.paused) { stopCurrentAudio(); btn.textContent = '◖)) 重播'; wrap.done=true; return; }
         if (wrap.audio && !wrap.done) { await wrap.audio.play(); btn.textContent = 'Ⅱ 停止'; return; }
         if (wrap.done) { wrap.done=false; progress.style.width='0%'; }
         btn.disabled = true;
@@ -470,7 +501,7 @@
         // The welcome message is rendered but intentionally not persisted. Send it as
         // first-turn context so the model knows it has already introduced itself.
         if(!prior.length) prior.push({role:'assistant',content:welcomes[state.persona]});
-        const r=await fetch('/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({persona:state.persona,provider:state.provider,message,history:prior})});
+        const r=await fetchRetry('/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({persona:state.persona,provider:state.provider,message,history:prior})});
         const data=await r.json();
         if(data.quota){state.status.quota=data.quota;updateStatusUI();}
         if(r.status===402||data.code==='payment_required'){typing.remove();openPaywall();return;}
@@ -553,7 +584,7 @@
     $('menuBtn').onclick=()=> $('drawer').classList.add('open'); $('closeDrawer').onclick=()=> $('drawer').classList.remove('open');
     $('drawer').onclick=e=>{if(e.target===$('drawer'))$('drawer').classList.remove('open');};
     $('provider').onchange=()=>{state.provider=$('provider').value;updateStatusUI();};
-    $('applySettings').onclick=()=>{state.persona=$('persona').value;state.provider=$('provider').value;persistSettings();render();$('drawer').classList.remove('open');};
+    $('applySettings').onclick=()=>{stopCurrentAudio();state.persona=$('persona').value;state.provider=$('provider').value;persistSettings();render();$('drawer').classList.remove('open');};
     $('clearChat').onclick=()=>{if(confirm('清空当前角色的本地聊天记录？')){state.histories[state.persona]=[];save();render();$('drawer').classList.remove('open');}};
     $('closePaywall').onclick=closePaywall;
     $('paywall').onclick=e=>{if(e.target===$('paywall'))closePaywall();};

@@ -54,6 +54,8 @@ class PersonaTest(unittest.TestCase):
     def test_laocan_prompt_uses_reviewed_rag_and_is_disclosed(self):
         prompt = build_system_prompt("laocan")
         self.assertIn("老残", prompt)
+        self.assertIn("不要把残疾经历当作人物标签", prompt)
+        self.assertIn("不得使用歧视、猎奇、怜悯化或冒犯性表达", prompt)
         self.assertIn("宓国贤", prompt)
         self.assertIn("AI 同人角色", prompt)
         self.assertIn("人物专属 facts/style RAG 最小生产库已启用", prompt)
