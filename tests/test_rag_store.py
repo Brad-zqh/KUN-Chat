@@ -35,6 +35,11 @@ class RagStoreTest(unittest.TestCase):
                     'attributed_fact','{}','unverified',0
                 );
                 INSERT INTO documents VALUES (
+                    'f2','fengge','fact','本人公开说自己重视无障碍出行','公开独白',
+                    'https://example.com/monologue','publisher','2026','approved_single_speaker',
+                    'own_speech','{}','unverified',0
+                );
+                INSERT INTO documents VALUES (
                     'sdoc','fengge','style','直播里提到的个人口语片段','公开直播',
                     'https://example.com/live','publisher','2026','approved_clip',
                     'own_speech','{}','unverified',0
@@ -53,14 +58,16 @@ class RagStoreTest(unittest.TestCase):
             conn.close()
             with patch.dict(os.environ, {"FENGGE_RAG_DB": str(database)}, clear=False):
                 reviewed_status = rag_store.status("fengge")
-                self.assertEqual(reviewed_status["sources"], 2)
-                self.assertEqual(reviewed_status["facts"], 1)
+                self.assertEqual(reviewed_status["sources"], 3)
+                self.assertEqual(reviewed_status["facts"], 2)
                 self.assertEqual(reviewed_status["style_documents"], 1)
-                self.assertEqual(len(rag_store.search("程序员", persona="fengge")), 1)
-                fact_hits = rag_store.search("个人口语片段", persona="fengge")
+                self.assertEqual(len(rag_store.search("程序员", limit=1, persona="fengge")), 1)
+                fact_hits = rag_store.search("个人口语片段", limit=1, persona="fengge")
                 self.assertEqual(len(fact_hits), 1)
                 self.assertEqual(fact_hits[0].path, "fengge:f1")
                 self.assertNotIn("个人口语片段", fact_hits[0].content)
+                own_speech_fact_hits = rag_store.search("无障碍出行", persona="fengge")
+                self.assertEqual(own_speech_fact_hits[0].path, "fengge:f2")
                 style_hits = rag_store.style_search("问题", limit=1, persona="fengge")
                 self.assertEqual(len(style_hits), 1)
                 self.assertEqual(style_hits[0].source_id, "s1")

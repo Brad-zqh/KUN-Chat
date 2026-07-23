@@ -512,6 +512,17 @@ def _tts_provider_for(persona: str) -> str:
     ).strip().lower()
 
 
+def _minimax_tts_speed_for(persona: str) -> float:
+    raw = os.getenv(
+        f"MINIMAX_TTS_SPEED_{persona.upper()}",
+        os.getenv("MINIMAX_TTS_SPEED", "1.0"),
+    ).strip()
+    try:
+        return float(raw)
+    except ValueError as exc:
+        raise RuntimeError(f"MINIMAX_TTS_SPEED_{persona.upper()} must be a number") from exc
+
+
 async def _chat_reply(
     persona: str, provider: str, message: str, history: list[dict]
 ) -> tuple[str, list[dict]]:
@@ -627,7 +638,7 @@ def _synthesize_wav(persona: str, text: str) -> bytes:
             )
         sample_rate = int(os.getenv("MINIMAX_SAMPLE_RATE", "24000"))
         model = os.getenv("MINIMAX_TTS_MODEL", "speech-02-turbo")
-        speed = float(os.getenv("MINIMAX_TTS_SPEED", "1.0"))
+        speed = _minimax_tts_speed_for(persona)
         minimax_api_base = os.getenv(
             "MINIMAX_API_BASE", "https://api.minimaxi.com"
         ).rstrip("/")

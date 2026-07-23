@@ -1,19 +1,20 @@
 # KUN Chat 多角色复刻工作流
 
-本文记录当前 KUN Chat 的生产流程，并作为“坤坤、峰哥、青霞、磊磊”四个公开表达型 AI 角色的统一实施规范。其中青霞基于林青霞公开表达资料，磊磊基于涂磊公开表达资料。这里的“复刻”是指：基于可核验的公开表达，生成带清晰 AI 标识的对话角色；不把角色冒充为真人，也不把影视台词、主持人提问或他人观点写成人物本人的经历与观点。
+本文记录当前 KUN Chat 的生产流程，并作为“坤坤、峰哥、青霞、磊磊、老残”五个公开表达型 AI 角色的统一实施规范。其中青霞基于林青霞公开表达资料，磊磊基于涂磊公开表达资料，老残基于宓国贤（笔名老残）的公开资料。这里的“复刻”是指：基于可核验的公开表达，生成带清晰 AI 标识的对话角色；不把角色冒充为真人，也不把影视台词、主持人提问或他人观点写成人物本人的经历与观点。
 
 ## 1. 当前生产基线
 
 | 角色 | 对话状态 | 事实 RAG | 风格 RAG | 语音状态 |
 | --- | --- | ---: | ---: | --- |
 | 坤坤 | 生产可用 | 107 sources / 119 chunks | 424 examples | 本地已配置；授权状态仍由独立门禁管理 |
-| 峰哥 | B站直播切片第一批已接入 | 2 fact documents | 50 style examples | MiniMax 原创数字人声线；非真人声纹克隆 |
-| 青霞（林青霞 AI 角色） | 最小生产集已接入 | 4 documents | 1 example | MiniMax 专属 Voice ID，仅保存在本机 |
-| 磊磊（涂磊 AI 角色） | 最小生产集已接入 | 5 documents | 2 examples | MiniMax 专属 Voice ID，仅保存在本机 |
+| 峰哥 | B站直播切片生产批已接入 | 2 fact documents | 73 style examples | MiniMax 原创数字人声线；非真人声纹克隆 |
+| 青霞（林青霞 AI 角色） | 生产集已接入 | 14 fact documents | 7 style examples | MiniMax 专属 Voice ID，仅保存在本机 |
+| 磊磊（涂磊 AI 角色） | 生产集已接入 | 12 fact documents | 9 style examples | MiniMax 专属 Voice ID，仅保存在本机 |
+| 老残（宓国贤 AI 角色） | 首批生产集已接入 | 15 fact documents | 23 style examples | 未验证训练许可；不做真人声纹训练 |
 
-2026-07-22 峰哥 B 站直播切片第一批已增量接入独立生产库：52 documents（2 facts + 50 style），其中 50 条 style examples；应用状态将每条生产 document 作为一个可检索 chunk，因此报告为 52 documents / 52 chunks / 50 style examples。`persona_id=fengge` 时只读取 `D:\OneDrive\LLMs\persona-material\fengge\production\fengge-rag.sqlite3`。其余 510 个未完成双门禁的窗口继续隔离，不得进入生产。
+2026-07-23 老残首批接入独立生产库：38 documents（15 facts + 23 style），其中 23 条 style examples；`persona_id=laocan` 时只读取 `D:\OneDrive\LLMs\persona-material\Laocan\production\laocan-rag.sqlite3`。歌曲、诗歌朗读、朋友转述、来宾发言和无法确认的余段继续隔离。
 
-峰哥 style 记录只用于表达风格与归属观点，不得作为客观事实检索；Facts RAG 仅查询 `kind=fact AND semantic_gate=attributed_fact`。当前 `production_scope_pending=0`、`training_permission=unverified`、`audio_training_eligible=false`、声纹训练关闭。
+style 记录只用于表达风格与归属观点，不得作为客观事实检索；Facts RAG 只查询 `kind=fact` 且语义门禁为 `attributed_fact` 或已核验的 `own_speech`。当前各人物生产库均保持 `production_scope_pending=0`；真人素材的 `training_permission=unverified`、`audio_training_eligible=false`、声纹训练关闭。
 
 候选库总览：`D:\OneDrive\LLMs\persona-material\README.md`；机器可读状态：`D:\OneDrive\LLMs\persona-material\STATUS.json`。
 
@@ -109,6 +110,7 @@ D:\OneDrive\LLMs\persona-material\
   fengge\
   linqingxia\
   tulei\
+  Laocan\
 ```
 
 每个人物至少包含：

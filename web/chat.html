@@ -8,6 +8,7 @@
   <link rel="preload" as="image" href="/assets/fengge-avatar.jpg" />
   <link rel="preload" as="image" href="/assets/linqingxia-avatar.jpg" />
   <link rel="preload" as="image" href="/assets/tulei-avatar.jpg" />
+  <link rel="preload" as="image" href="/assets/laocan-avatar.jpg" />
   <style>
     :root {
       color-scheme: light;
@@ -203,7 +204,7 @@
       <button class="icon-btn" id="closeDrawer" aria-label="关闭">×</button>
       <h2>聊天设置</h2>
       <p>聊天记录只保存在这个浏览器本机。角色可以随时切换，每个角色的对话分别保存。</p>
-      <div class="field"><label for="persona">角色</label><select id="persona"><option value="kunkun">坤坤</option><option value="fengge">峰哥</option><option value="linqingxia">青霞</option><option value="tulei">磊磊</option></select></div>
+      <div class="field"><label for="persona">角色</label><select id="persona"><option value="kunkun">坤坤</option><option value="fengge">峰哥</option><option value="linqingxia">青霞</option><option value="tulei">磊磊</option><option value="laocan">老残</option></select></div>
       <div class="field"><label for="provider">文字模型</label><select id="provider"><option value="minimax">MiniMax M2.7</option><option value="deepseek">DeepSeek Chat</option></select></div>
       <p class="key-help" id="keyHelp">文字模型尚未配置 API Key。请在项目的 .env.local 中填写所选模型的 Key，然后重启网页服务。</p>
       <button class="action primary" id="applySettings">应用设置</button>
@@ -254,20 +255,22 @@
       histories: JSON.parse(localStorage.getItem('chat-histories') || '{}'),
       status: { providers: {}, voxcpm: false, tts_provider:'voxcpm', music:{ready:false,model:'music-3.0-free',daily_limit:3}, rag: {sources:0,chunks:0}, persona_rag:{}, quota:{free_limit:5,free_used:0,free_remaining:5,credits:0,can_chat:true,payment_enabled:false} }, busy: false, audio: null
     };
-    const names = { kunkun: '坤坤', fengge: '峰哥', linqingxia: '青霞', tulei: '磊磊' };
-    const realNames = { kunkun: '蔡徐坤', fengge: '峰哥', linqingxia: '林青霞', tulei: '涂磊' };
+    const names = { kunkun: '坤坤', fengge: '峰哥', linqingxia: '青霞', tulei: '磊磊', laocan: '老残' };
+    const realNames = { kunkun: '蔡徐坤', fengge: '峰哥', linqingxia: '林青霞', tulei: '涂磊', laocan: '宓国贤' };
     const KUN_AVATAR_SRC = '/assets/kun-avatar-ai-v1.png';
     const AVATARS = {
       kunkun: KUN_AVATAR_SRC,
       fengge: '/assets/fengge-avatar.jpg',
       linqingxia: '/assets/linqingxia-avatar.jpg',
-      tulei: '/assets/tulei-avatar.jpg'
+      tulei: '/assets/tulei-avatar.jpg',
+      laocan: '/assets/laocan-avatar.jpg'
     };
     const welcomes = {
       kunkun: '你好，我是坤坤。想聊音乐、舞台、创作，或者最近的状态，都可以。',
       fengge: '有什么问题你就问。先说明一下，这是根据公开表达资料设计的 AI 角色，不是峰哥本人。',
       linqingxia: '你好。可以聊电影、阅读、写作和公开的人生感悟。这里是基于公开资料设计的 AI 角色，不是林青霞本人。',
-      tulei: '你可以直接说问题。这里是根据公开节目与表达资料设计的 AI 角色，不是涂磊本人。'
+      tulei: '你可以直接说问题。这里是根据公开节目与表达资料设计的 AI 角色，不是涂磊本人。',
+      laocan: '你好，我是老残。可以聊无障碍出行、阅读写作、地方文化，也可以随便说说生活。这里是根据公开表达资料设计的 AI 角色，不是宓国贤本人。'
     };
 
     function history() { return state.histories[state.persona] ||= []; }

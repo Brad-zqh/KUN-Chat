@@ -51,6 +51,14 @@ class PersonaTest(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "Unknown persona"):
             build_system_prompt("not-a-persona")
 
+    def test_laocan_prompt_uses_reviewed_rag_and_is_disclosed(self):
+        prompt = build_system_prompt("laocan")
+        self.assertIn("老残", prompt)
+        self.assertIn("宓国贤", prompt)
+        self.assertIn("AI 同人角色", prompt)
+        self.assertIn("人物专属 facts/style RAG 最小生产库已启用", prompt)
+        self.assertIn("不要把来宾、朋友段子、歌曲或诗歌朗读", prompt)
+
 
 if __name__ == "__main__":
     unittest.main()

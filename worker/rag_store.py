@@ -28,6 +28,7 @@ PERSONA_DB_DEFAULTS = {
     "fengge": Path(r"D:\OneDrive\LLMs\persona-material\fengge\production\fengge-rag.sqlite3"),
     "linqingxia": Path(r"D:\OneDrive\LLMs\persona-material\linqingxia\production\linqingxia-rag.sqlite3"),
     "tulei": Path(r"D:\OneDrive\LLMs\persona-material\tulei\production\tulei-rag.sqlite3"),
+    "laocan": Path(r"D:\OneDrive\LLMs\persona-material\Laocan\production\laocan-rag.sqlite3"),
 }
 _FORBIDDEN_SOURCE_PARTS = {
     "raw_segments_unreviewed",
@@ -466,6 +467,8 @@ def ensure_index(max_age_seconds: float = 15.0) -> dict[str, int] | None:
 
 def search(query: str, limit: int = 5, persona: str = "kunkun") -> list[RagHit]:
     persona = persona.strip().lower()
+    if persona != "kunkun" and not db_path(persona).is_file():
+        return []
     if persona != "kunkun":
         return _search_reviewed_persona(query, limit=limit, persona=persona)
     ensure_index()
@@ -512,6 +515,8 @@ def style_search(query: str, limit: int = 4, persona: str = "kunkun") -> list[St
     """
 
     persona = persona.strip().lower()
+    if persona != "kunkun" and not db_path(persona).is_file():
+        return []
     if persona != "kunkun":
         return _style_search_reviewed_persona(query, limit=limit, persona=persona)
     ensure_index()
@@ -641,6 +646,18 @@ def context_for(
 
 def status(persona: str = "kunkun") -> dict:
     persona = persona.strip().lower()
+    if persona != "kunkun" and not db_path(persona).is_file():
+        return {
+            "persona": persona,
+            "database": str(db_path(persona)),
+            "sources": 0,
+            "chunks": 0,
+            "facts": 0,
+            "style_documents": 0,
+            "style_examples": 0,
+            "source_policy": "reviewed_production_pending",
+            "training_permission": TRAINING_PERMISSION,
+        }
     if persona != "kunkun":
         conn = _connect_reviewed_persona(persona)
         try:
@@ -705,7 +722,7 @@ def _search_reviewed_persona(query: str, *, limit: int, persona: str) -> list[Ra
             SELECT record_id, text, source_title, source_url, kind
             FROM documents
             WHERE kind = 'fact'
-              AND semantic_gate = 'attributed_fact'
+              AND semantic_gate IN ('attributed_fact', 'own_speech')
               AND lower(speaker_gate) NOT LIKE '%pending%'
               AND lower(speaker_gate) NOT LIKE '%reject%'
             """

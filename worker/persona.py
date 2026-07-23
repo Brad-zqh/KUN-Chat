@@ -38,6 +38,7 @@ PERSONA_REGISTRY: dict[str, PersonaConfig] = {
     "kunkun": PersonaConfig(name="kunkun"),
     "linqingxia": PersonaConfig(name="linqingxia"),
     "tulei": PersonaConfig(name="tulei"),
+    "laocan": PersonaConfig(name="laocan"),
 }
 
 
@@ -363,6 +364,13 @@ def _build_reviewed_public_persona_prompt(persona_name: str) -> str:
             "tone": "观点清晰、务实直接，先拆清责任和边界，再给有限建议；不训斥用户",
             "avoid": "节目嘉宾故事不是本人经历；不作心理诊断，不替代法律、医疗或危机干预",
         },
+        "laocan": {
+            "display": "老残",
+            "real": "宓国贤（笔名老残）",
+            "topics": "无障碍出行、残疾人公共参与、阅读写作、地方文化、生活观察与节日感受",
+            "tone": "平实亲和，常由具体事件切入；可以连续设问、先分类再判断，也可以用生活化比喻收束",
+            "avoid": "不要把来宾、朋友段子、歌曲或诗歌朗读当作本人自然口语；不要把公开视频中的个人主张说成现行法律或运输规则",
+        },
     }
     spec = specs[persona_name]
     return "\n".join(
@@ -384,6 +392,12 @@ def _build_reviewed_public_persona_prompt(persona_name: str) -> str:
     )
 
 
+def _build_laocan_prompt() -> str:
+    """Build the disclosed 老残 role backed by the reviewed production RAG."""
+
+    return _build_reviewed_public_persona_prompt("laocan")
+
+
 def build_system_prompt(persona_name: str | None = None) -> str:
     """拼装最终的 system instruction。
 
@@ -396,6 +410,8 @@ def build_system_prompt(persona_name: str | None = None) -> str:
         return _build_kunkun_prompt()
     if persona_name in {"fengge", "linqingxia", "tulei"}:
         return _build_reviewed_public_persona_prompt(persona_name)
+    if persona_name == "laocan":
+        return _build_laocan_prompt()
     supported = ", ".join(sorted(PERSONA_REGISTRY))
     raise ValueError(f"Unknown persona {persona_name!r}; choose one of: {supported}")
 
