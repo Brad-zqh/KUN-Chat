@@ -79,6 +79,93 @@ UNLIMITED_TEST_MODE = (
 )
 
 
+def _minimax_websocket_pcm(
+    api_base: str,
+    api_key: str,
+    voice_id: str,
+    text: str,
+    model: str,
+    sample_rate: int,
+    speed: float,
+    timeout: int,
+) -> bytes:
+    """Generate native Chinese PCM through MiniMax's streaming T2A endpoint."""
+    from websockets.sync.client import connect
+
+    ws_base = re.sub(r"^https://", "wss://", api_base.rstrip("/"))
+    ws_base = re.sub(r"^http://", "ws://", ws_base)
+    pcm_parts: list[bytes] = []
+    started = False
+    finish_sent = False
+    with connect(
+        f"{ws_base}/ws/v1/t2a_v2",
+        additional_headers={"Authorization": f"Bearer {api_key}"},
+        open_timeout=min(timeout, 20),
+        close_timeout=5,
+    ) as websocket:
+        for _ in range(240):
+            message = json.loads(websocket.recv(timeout=timeout))
+            base_resp = message.get("base_resp") or {}
+            if base_resp.get("status_code", 0) != 0:
+                raise RuntimeError(
+                    f"MiniMax TTS error {base_resp.get('status_code')}: "
+                    f"{base_resp.get('status_msg')}"
+                )
+            event = message.get("event")
+            if event == "connected_success":
+                websocket.send(
+                    json.dumps(
+                        {
+                            "event": "task_start",
+                            "model": model,
+                            "language_boost": "Chinese",
+                            "voice_setting": {
+                                "voice_id": voice_id,
+                                "speed": speed,
+                                "vol": 1.0,
+                                "pitch": 0,
+                            },
+                            "audio_setting": {
+                                "sample_rate": sample_rate,
+                                "bitrate": 128000,
+                                "format": "pcm",
+                                "channel": 1,
+                            },
+                        },
+                        ensure_ascii=False,
+                    )
+                )
+            elif event == "task_started" and not started:
+                started = True
+                websocket.send(
+                    json.dumps(
+                        {"event": "task_continue", "text": text},
+                        ensure_ascii=False,
+                    )
+                )
+
+            audio_hex = (message.get("data") or {}).get("audio")
+            if audio_hex:
+                pcm_parts.append(bytes.fromhex(audio_hex))
+
+            is_final = bool(
+                message.get("is_final")
+                or (message.get("data") or {}).get("is_final")
+            )
+            if is_final and not finish_sent:
+                finish_sent = True
+                websocket.send(json.dumps({"event": "task_finish"}))
+            if event == "task_finished":
+                break
+        else:
+            raise RuntimeError("MiniMax TTS websocket did not finish")
+
+    pcm = b"".join(pcm_parts)
+    if not pcm:
+        raise RuntimeError("MiniMax TTS returned no audio")
+    return pcm
+
+
 class PaymentRequiredError(RuntimeError):
     pass
 
@@ -539,13 +626,46 @@ def _synthesize_wav(persona: str, text: str) -> bytes:
                 f"MINIMAX_VOICE_ID_{persona.upper()} 尚未配置；请填写已获授权的 MiniMax Voice ID"
             )
         sample_rate = int(os.getenv("MINIMAX_SAMPLE_RATE", "24000"))
+        model = os.getenv("MINIMAX_TTS_MODEL", "speech-02-turbo")
+        speed = float(os.getenv("MINIMAX_TTS_SPEED", "1.0"))
+        minimax_api_base = os.getenv(
+            "MINIMAX_API_BASE", "https://api.minimaxi.com"
+        ).rstrip("/")
+        timeout = max(10, int(os.getenv("MINIMAX_TTS_TIMEOUT_SECONDS", "45")))
+        transport = os.getenv("MINIMAX_TTS_TRANSPORT", "http").strip().lower()
+        if transport == "websocket":
+            pcm = _minimax_websocket_pcm(
+                minimax_api_base,
+                api_key,
+                voice_id,
+                text,
+                model,
+                sample_rate,
+                speed,
+                timeout,
+            )
+            output = io.BytesIO()
+            with wave.open(output, "wb") as wav:
+                wav.setnchannels(1)
+                wav.setsampwidth(2)
+                wav.setframerate(sample_rate)
+                wav.writeframes(pcm)
+            result = output.getvalue()
+            if len(_SPEECH_CACHE) >= _SPEECH_CACHE_MAX_ITEMS:
+                _SPEECH_CACHE.pop(next(iter(_SPEECH_CACHE)))
+            _SPEECH_CACHE[cache_key] = result
+            return result
+        if transport != "http":
+            raise RuntimeError(
+                "MINIMAX_TTS_TRANSPORT must be 'http' or 'websocket'"
+            )
         payload = {
-            "model": os.getenv("MINIMAX_TTS_MODEL", "speech-02-turbo"),
+            "model": model,
             "text": text,
             "stream": False,
             "voice_setting": {
                 "voice_id": voice_id,
-                "speed": float(os.getenv("MINIMAX_TTS_SPEED", "1.0")),
+                "speed": speed,
                 "vol": 1.0,
                 "pitch": 0,
             },
@@ -557,9 +677,6 @@ def _synthesize_wav(persona: str, text: str) -> bytes:
             },
             "language_boost": "Chinese",
         }
-        minimax_api_base = os.getenv(
-            "MINIMAX_API_BASE", "https://api.minimaxi.com"
-        ).rstrip("/")
         request = urllib.request.Request(
             f"{minimax_api_base}/v1/t2a_v2",
             data=json.dumps(payload, ensure_ascii=False).encode("utf-8"),
@@ -569,7 +686,6 @@ def _synthesize_wav(persona: str, text: str) -> bytes:
             },
             method="POST",
         )
-        timeout = max(10, int(os.getenv("MINIMAX_TTS_TIMEOUT_SECONDS", "45")))
         result_json = None
         for attempt in range(2):
             try:

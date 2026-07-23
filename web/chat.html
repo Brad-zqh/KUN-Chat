@@ -203,7 +203,7 @@
       <button class="icon-btn" id="closeDrawer" aria-label="关闭">×</button>
       <h2>聊天设置</h2>
       <p>聊天记录只保存在这个浏览器本机。角色可以随时切换，每个角色的对话分别保存。</p>
-      <div class="field"><label for="persona">角色</label><select id="persona"><option value="kunkun">坤坤</option><option value="fengge">峰哥</option><option value="linqingxia">林青霞</option><option value="tulei">涂磊</option></select></div>
+      <div class="field"><label for="persona">角色</label><select id="persona"><option value="kunkun">坤坤</option><option value="fengge">峰哥</option><option value="linqingxia">青霞</option><option value="tulei">磊磊</option></select></div>
       <div class="field"><label for="provider">文字模型</label><select id="provider"><option value="minimax">MiniMax M2.7</option><option value="deepseek">DeepSeek Chat</option></select></div>
       <p class="key-help" id="keyHelp">文字模型尚未配置 API Key。请在项目的 .env.local 中填写所选模型的 Key，然后重启网页服务。</p>
       <button class="action primary" id="applySettings">应用设置</button>
@@ -254,7 +254,7 @@
       histories: JSON.parse(localStorage.getItem('chat-histories') || '{}'),
       status: { providers: {}, voxcpm: false, tts_provider:'voxcpm', music:{ready:false,model:'music-3.0-free',daily_limit:3}, rag: {sources:0,chunks:0}, persona_rag:{}, quota:{free_limit:5,free_used:0,free_remaining:5,credits:0,can_chat:true,payment_enabled:false} }, busy: false, audio: null
     };
-    const names = { kunkun: '坤坤', fengge: '峰哥', linqingxia: '林青霞', tulei: '涂磊' };
+    const names = { kunkun: '坤坤', fengge: '峰哥', linqingxia: '青霞', tulei: '磊磊' };
     const realNames = { kunkun: '蔡徐坤', fengge: '峰哥', linqingxia: '林青霞', tulei: '涂磊' };
     const KUN_AVATAR_SRC = '/assets/kun-avatar-ai-v1.png';
     const AVATARS = {

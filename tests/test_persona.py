@@ -14,7 +14,7 @@ class PersonaTest(unittest.TestCase):
         self.assertNotIn("你就是峰哥本人", prompt)
 
     def test_new_public_personas_are_available_and_disclosed(self):
-        for persona, display in (("linqingxia", "林青霞"), ("tulei", "涂磊")):
+        for persona, display in (("linqingxia", "青霞"), ("tulei", "磊磊")):
             with self.subTest(persona=persona):
                 prompt = build_system_prompt(persona)
                 self.assertIn(display, prompt)

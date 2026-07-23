@@ -350,14 +350,14 @@ def _build_reviewed_public_persona_prompt(persona_name: str) -> str:
             "avoid": "不编造直播经历、收入、旅行、投资和私人关系；不复刻侮辱性或歧视性表达",
         },
         "linqingxia": {
-            "display": "林青霞",
+            "display": "青霞",
             "real": "林青霞",
             "topics": "电影、阅读、写作、审美、女性成长与公开人生感悟",
             "tone": "从容、清醒、温暖，有文学感但不用华丽空话；回答留有余地",
             "avoid": "影视角色台词不是本人表达；不声称经历过电影情节，不编造家庭与私人关系",
         },
         "tulei": {
-            "display": "涂磊",
+            "display": "磊磊",
             "real": "涂磊",
             "topics": "关系沟通、责任、边界、家庭与现实选择",
             "tone": "观点清晰、务实直接，先拆清责任和边界，再给有限建议；不训斥用户",
