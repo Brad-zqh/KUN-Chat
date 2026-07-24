@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import base64
 import hashlib
+import hmac
 import io
 import json
 import os
@@ -46,7 +47,9 @@ from worker.rag_store import style_context_for as rag_style_context_for
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 WEB_DIR = PROJECT_ROOT / "web"
-SUPPORTED_PERSONAS = frozenset(PERSONA_REGISTRY)
+# Keep the underlying materials intact, but do not publish disabled personas.
+DISABLED_PERSONAS = frozenset({"tulei"})
+SUPPORTED_PERSONAS = frozenset(PERSONA_REGISTRY) - DISABLED_PERSONAS
 
 # 阶段 20 修复：web 是 nohup 后台拉，**不继承 shell env**，必须自己 load_dotenv
 # 否则 AGENT_NAME 走默认值 "talk-to-me-agent"，跟 worker 的 "talk-to-me-dev3" 不匹配，
@@ -69,7 +72,7 @@ configure_local_no_proxy()
 _SPEECH_CACHE: dict[tuple[str, str, str], bytes] = {}
 _SPEECH_CACHE_MAX_ITEMS = 64
 USAGE_DB = Path(os.getenv("PUBLIC_USAGE_DB", PROJECT_ROOT / "data" / "public-usage.sqlite3"))
-FREE_CHAT_LIMIT = max(0, int(os.getenv("PUBLIC_FREE_CHAT_LIMIT", "5")))
+FREE_CHAT_LIMIT = max(0, int(os.getenv("PUBLIC_FREE_CHAT_LIMIT", "8")))
 IP_HOURLY_CHAT_LIMIT = max(FREE_CHAT_LIMIT, int(os.getenv("PUBLIC_IP_HOURLY_CHAT_LIMIT", "20")))
 INITIAL_TTS_ALLOWANCE = max(1, int(os.getenv("PUBLIC_INITIAL_TTS_ALLOWANCE", "8")))
 OWNER_TTS_ALLOWANCE = max(INITIAL_TTS_ALLOWANCE, int(os.getenv("OWNER_TTS_ALLOWANCE", "64")))
@@ -77,6 +80,12 @@ UNLIMITED_TEST_MODE = (
     os.getenv("PUBLIC_UNLIMITED_TEST_MODE", "").strip().lower() in {"1", "true", "yes", "on"}
     or (PROJECT_ROOT / "data" / "public-unlimited.flag").exists()
 )
+AUTH_REQUIRED = os.getenv("PUBLIC_AUTH_REQUIRED", "").strip().lower() in {
+    "1", "true", "yes", "on"
+}
+MANUAL_PAYMENT_ENABLED = os.getenv("MANUAL_PAYMENT_ENABLED", "1").strip().lower() in {
+    "1", "true", "yes", "on"
+}
 
 
 def _minimax_websocket_pcm(
@@ -161,8 +170,13 @@ def _minimax_websocket_pcm(
             raise RuntimeError("MiniMax TTS websocket did not finish")
 
     pcm = b"".join(pcm_parts)
-    if not pcm:
-        raise RuntimeError("MiniMax TTS returned no audio")
+    # A successful handshake can occasionally be followed by an empty/final
+    # WebSocket frame.  Treat a header-sized payload as a failed stream so the
+    # caller can retry through the non-streaming HTTP endpoint.
+    if len(pcm) < 1024:
+        raise RuntimeError(
+            f"MiniMax TTS websocket returned incomplete audio ({len(pcm)} bytes)"
+        )
     return pcm
 
 
@@ -171,6 +185,10 @@ class PaymentRequiredError(RuntimeError):
 
 
 class RateLimitError(RuntimeError):
+    pass
+
+
+class AuthRequiredError(RuntimeError):
     pass
 
 
@@ -207,9 +225,194 @@ def _usage_connection() -> sqlite3.Connection:
             visitor_id TEXT NOT NULL,
             created_at INTEGER NOT NULL
         );
+        CREATE TABLE IF NOT EXISTS users (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            username TEXT NOT NULL UNIQUE COLLATE NOCASE,
+            password_hash TEXT NOT NULL,
+            password_salt TEXT NOT NULL,
+            created_at INTEGER NOT NULL,
+            updated_at INTEGER NOT NULL
+        );
+        CREATE TABLE IF NOT EXISTS sessions (
+            token_hash TEXT PRIMARY KEY,
+            user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+            created_at INTEGER NOT NULL,
+            expires_at INTEGER NOT NULL
+        );
+        CREATE TABLE IF NOT EXISTS payment_orders (
+            order_id TEXT PRIMARY KEY,
+            user_id INTEGER NOT NULL REFERENCES users(id),
+            provider TEXT NOT NULL,
+            plan_id TEXT NOT NULL,
+            amount_fen INTEGER NOT NULL,
+            credits INTEGER NOT NULL,
+            status TEXT NOT NULL DEFAULT 'pending',
+            provider_order_id TEXT,
+            created_at INTEGER NOT NULL,
+            paid_at INTEGER
+        );
         """
     )
+    user_columns = {
+        row["name"] for row in conn.execute("PRAGMA table_info(users)").fetchall()
+    }
+    if "is_admin" not in user_columns:
+        conn.execute(
+            "ALTER TABLE users ADD COLUMN is_admin INTEGER NOT NULL DEFAULT 0"
+        )
     return conn
+
+
+PAYMENT_PLANS = (
+    {"id": "starter", "name": "轻量体验", "amount_fen": 390, "credits": 20},
+    {"id": "regular", "name": "日常畅聊", "amount_fen": 990, "credits": 60},
+    {"id": "supporter", "name": "长期支持", "amount_fen": 2990, "credits": 180},
+)
+SESSION_MAX_AGE = 30 * 24 * 3600
+
+
+def _password_digest(password: str, salt: bytes) -> str:
+    return hashlib.scrypt(
+        password.encode("utf-8"), salt=salt, n=2**14, r=8, p=1, dklen=32
+    ).hex()
+
+
+def _validate_credentials(username: str, password: str) -> tuple[str, str]:
+    username = username.strip()
+    if not re.fullmatch(r"[A-Za-z0-9_\-.\u4e00-\u9fff]{2,32}", username):
+        raise ValueError("用户名需为 2-32 位中文、字母、数字、下划线、短横线或点")
+    if len(password) < 6 or len(password) > 128:
+        raise ValueError("密码需为 6-128 位")
+    return username, password
+
+
+def _create_session(conn: sqlite3.Connection, user_id: int) -> str:
+    token = secrets.token_urlsafe(32)
+    now = int(time.time())
+    conn.execute("DELETE FROM sessions WHERE expires_at <= ?", (now,))
+    conn.execute(
+        "INSERT INTO sessions(token_hash,user_id,created_at,expires_at) VALUES(?,?,?,?)",
+        (hashlib.sha256(token.encode()).hexdigest(), user_id, now, now + SESSION_MAX_AGE),
+    )
+    return token
+
+
+def _user_for_session(token: str) -> sqlite3.Row | None:
+    if not token:
+        return None
+    conn = _usage_connection()
+    try:
+        return conn.execute(
+            """SELECT u.id,u.username,u.is_admin,s.expires_at FROM sessions s
+               JOIN users u ON u.id=s.user_id
+               WHERE s.token_hash=? AND s.expires_at>?""",
+            (hashlib.sha256(token.encode()).hexdigest(), int(time.time())),
+        ).fetchone()
+    finally:
+        conn.close()
+
+
+def _account_visitor_id(user_id: int) -> str:
+    return hashlib.sha256(f"kun-account:{user_id}".encode("utf-8")).hexdigest()[:48]
+
+
+def _public_payment_plans() -> list[dict]:
+    return [
+        {
+            "id": plan["id"],
+            "name": plan["name"],
+            "amount_fen": plan["amount_fen"],
+            "credits": plan["credits"],
+        }
+        for plan in PAYMENT_PLANS
+    ]
+
+
+def _payment_plan(plan_id: str) -> dict:
+    for plan in PAYMENT_PLANS:
+        if plan["id"] == plan_id:
+            return plan
+    raise ValueError("无效的充值套餐")
+
+
+def _create_manual_payment_order(
+    user_id: int, provider: str, plan_id: str, provider_order_id: str
+) -> dict:
+    if not MANUAL_PAYMENT_ENABLED:
+        raise ValueError("人工充值暂未开放")
+    provider = provider.strip().lower()
+    if provider not in {"alipay", "wechat"}:
+        raise ValueError("支付方式必须是支付宝或微信")
+    provider_order_id = provider_order_id.strip()
+    if not re.fullmatch(r"[A-Za-z0-9_\-]{4,64}", provider_order_id):
+        raise ValueError("请填写交易单号末 4 位以上，或完整交易单号")
+    plan = _payment_plan(plan_id)
+    order_id = f"KUN-{secrets.token_hex(6).upper()}"
+    conn = _usage_connection()
+    try:
+        duplicate = conn.execute(
+            "SELECT order_id FROM payment_orders WHERE provider=? AND provider_order_id=?",
+            (provider, provider_order_id),
+        ).fetchone()
+        if duplicate:
+            raise ValueError("该交易单号已经提交，请勿重复提交")
+        conn.execute(
+            """INSERT INTO payment_orders(
+                   order_id,user_id,provider,plan_id,amount_fen,credits,status,
+                   provider_order_id,created_at
+               ) VALUES(?,?,?,?,?,?,?,?,?)""",
+            (
+                order_id,
+                user_id,
+                provider,
+                plan["id"],
+                plan["amount_fen"],
+                plan["credits"],
+                "pending",
+                provider_order_id,
+                int(time.time()),
+            ),
+        )
+    finally:
+        conn.close()
+    return {"order_id": order_id, "status": "pending", **plan}
+
+
+def _approve_manual_payment_order(order_id: str, *, approve: bool) -> dict:
+    conn = _usage_connection()
+    try:
+        conn.execute("BEGIN IMMEDIATE")
+        row = conn.execute(
+            "SELECT * FROM payment_orders WHERE order_id=?", (order_id,)
+        ).fetchone()
+        if not row:
+            raise ValueError("订单不存在")
+        if row["status"] == "paid":
+            conn.execute("COMMIT")
+            return {"order_id": order_id, "status": "paid", "already_done": True}
+        if row["status"] != "pending":
+            raise ValueError("订单已处理")
+        status = "paid" if approve else "rejected"
+        now = int(time.time())
+        conn.execute(
+            "UPDATE payment_orders SET status=?,paid_at=? WHERE order_id=?",
+            (status, now if approve else None, order_id),
+        )
+        if approve:
+            visitor_id = _account_visitor_id(int(row["user_id"]))
+            _ensure_visitor(conn, visitor_id)
+            conn.execute(
+                "UPDATE visitors SET credits=credits+?,updated_at=? WHERE visitor_id=?",
+                (int(row["credits"]), now, visitor_id),
+            )
+        conn.execute("COMMIT")
+        return {"order_id": order_id, "status": status}
+    except Exception:
+        if conn.in_transaction:
+            conn.execute("ROLLBACK")
+        raise
+    finally:
+        conn.close()
 
 
 def _reserve_music_generation(visitor_id: str) -> int:
@@ -266,7 +469,9 @@ def _ensure_visitor(conn: sqlite3.Connection, visitor_id: str) -> None:
     )
 
 
-def _quota_status(visitor_id: str) -> dict[str, int | bool]:
+def _quota_status(
+    visitor_id: str, *, is_admin: bool = False
+) -> dict[str, int | bool]:
     conn = _usage_connection()
     try:
         _ensure_visitor(conn, visitor_id)
@@ -283,14 +488,21 @@ def _quota_status(visitor_id: str) -> dict[str, int | bool]:
         "free_remaining": max(0, FREE_CHAT_LIMIT - free_used),
         "credits": credits,
         "available_total": max(0, FREE_CHAT_LIMIT - free_used) + credits,
-        "can_chat": UNLIMITED_TEST_MODE or free_used < FREE_CHAT_LIMIT or credits > 0,
-        "unlimited": UNLIMITED_TEST_MODE,
-        "payment_enabled": False,
+        "can_chat": (
+            is_admin
+            or UNLIMITED_TEST_MODE
+            or free_used < FREE_CHAT_LIMIT
+            or credits > 0
+        ),
+        "unlimited": is_admin or UNLIMITED_TEST_MODE,
+        "payment_enabled": MANUAL_PAYMENT_ENABLED,
     }
 
 
-def _reserve_chat_turn(visitor_id: str, ip_address: str) -> str:
-    if UNLIMITED_TEST_MODE:
+def _reserve_chat_turn(
+    visitor_id: str, ip_address: str, *, is_admin: bool = False
+) -> str:
+    if is_admin or UNLIMITED_TEST_MODE:
         conn = _usage_connection()
         try:
             _ensure_visitor(conn, visitor_id)
@@ -329,7 +541,7 @@ def _reserve_chat_turn(visitor_id: str, ip_address: str) -> str:
                 (now, visitor_id),
             )
         else:
-            raise PaymentRequiredError("5 次免费对话已用完，请充值后继续")
+            raise PaymentRequiredError(f"{FREE_CHAT_LIMIT} 次免费对话已用完，请充值后继续")
         conn.execute(
             "UPDATE ip_windows SET chat_calls = chat_calls + 1 WHERE ip_address = ? AND window_start = ?",
             (ip_address, window_start),
@@ -378,8 +590,8 @@ def _refund_chat_turn(visitor_id: str, reservation: str) -> None:
         conn.close()
 
 
-def _reserve_tts_segment(visitor_id: str) -> None:
-    if UNLIMITED_TEST_MODE:
+def _reserve_tts_segment(visitor_id: str, *, is_admin: bool = False) -> None:
+    if is_admin or UNLIMITED_TEST_MODE:
         conn = _usage_connection()
         try:
             _ensure_visitor(conn, visitor_id)
@@ -472,8 +684,8 @@ _TTS_STAGE_DIRECTION = re.compile(
 )
 _TTS_STAGE_CUE = re.compile(
     r"语气|语速|平静|轻声|低声|温柔|认真|坚定|轻笑|微笑|叹气|停顿|沉默|"
-    r"放松|调侃|害羞|哽咽|吸气|呼气|咳嗽|激动|开心|难过|无奈|思考|"
-    r"缓慢|提高音量|压低声音"
+    r"笑|点头|摇头|眨眼|看着|顿了顿|放松|调侃|害羞|哽咽|吸气|呼气|"
+    r"咳嗽|激动|开心|难过|无奈|思考|沉思|缓慢|提高音量|压低声音"
 )
 
 
@@ -485,6 +697,21 @@ def _strip_stage_directions(text: str) -> str:
     visible = _TTS_STAGE_DIRECTION.sub(remove_stage_direction, text)
     visible = re.sub(r"^[\s，,。；;：:]+", "", visible)
     return re.sub(r"[ \t]{2,}", " ", visible).strip()
+
+
+def _strip_repetitive_sentence_openers(text: str, persona: str) -> str:
+    """Remove a model-learned filler only when it opens a sentence.
+
+    Reviewed 老残 clips contain natural sentence-final ``啊`` tokens.  The LLM
+    can over-generalize those examples into the mechanical opener ``啊，``.
+    Preserve ordinary in-sentence/final particles while dropping that opener
+    before the reply is displayed or synthesized.
+    """
+
+    if persona != "laocan":
+        return text
+    cleaned = re.sub(r"(^|[。！？!?])\s*啊[，,、：:\s]+", r"\1", text)
+    return cleaned.strip()
 
 
 def _normalize_tts_text(text: str) -> str:
@@ -610,6 +837,7 @@ async def _chat_reply(
         if client._client is not None:
             await client._client.aclose()
     reply = _strip_stage_directions("".join(chunks).strip())
+    reply = _strip_repetitive_sentence_openers(reply, persona)
     if not reply:
         raise RuntimeError("模型没有返回文字")
     return reply, sources
@@ -726,6 +954,10 @@ def _synthesize_wav(persona: str, text: str) -> bytes:
         if not audio_hex:
             raise RuntimeError("MiniMax TTS 没有返回音频")
         pcm = bytes.fromhex(audio_hex)
+        if len(pcm) < 1024:
+            raise RuntimeError(
+                f"MiniMax TTS HTTP returned incomplete audio ({len(pcm)} bytes)"
+            )
         output = io.BytesIO()
         with wave.open(output, "wb") as wav:
             wav.setnchannels(1)
@@ -871,9 +1103,129 @@ def create_room_and_token(room_base: str, identity: str, name: str) -> dict:
 class Handler(SimpleHTTPRequestHandler):
     def __init__(self, *args, **kwargs):
         self._pending_visitor_cookie: str | None = None
+        self._pending_session_cookie: str | None = None
+        self._clear_session_cookie = False
         super().__init__(*args, directory=str(WEB_DIR), **kwargs)
 
     def do_POST(self):
+        if self.path == "/auth/register":
+            try:
+                data = self._read_json()
+                username, password = _validate_credentials(
+                    str(data.get("username", "")),
+                    str(data.get("password", "")),
+                )
+                now = int(time.time())
+                salt = secrets.token_bytes(16)
+                conn = _usage_connection()
+                try:
+                    cursor = conn.execute(
+                        """INSERT INTO users(
+                               username,password_hash,password_salt,created_at,updated_at
+                           ) VALUES(?,?,?,?,?)""",
+                        (
+                            username,
+                            _password_digest(password, salt),
+                            salt.hex(),
+                            now,
+                            now,
+                        ),
+                    )
+                    user_id = int(cursor.lastrowid)
+                    token = _create_session(conn, user_id)
+                finally:
+                    conn.close()
+                self._pending_session_cookie = token
+                self._cached_user = None
+                visitor_id = _account_visitor_id(user_id)
+                self._send_json(
+                    201,
+                    {
+                        "ok": True,
+                        "user": {
+                            "id": user_id,
+                            "username": username,
+                            "is_admin": False,
+                        },
+                        "quota": _quota_status(visitor_id),
+                    },
+                )
+            except sqlite3.IntegrityError:
+                self._send_json(409, {"error": "用户名已存在"})
+            except ValueError as exc:
+                self._send_json(400, {"error": str(exc)})
+            except Exception as exc:
+                self._send_json(503, {"error": str(exc)})
+            return
+
+        if self.path == "/auth/login":
+            try:
+                data = self._read_json()
+                username, password = _validate_credentials(
+                    str(data.get("username", "")),
+                    str(data.get("password", "")),
+                )
+                conn = _usage_connection()
+                try:
+                    row = conn.execute(
+                        """SELECT id,username,password_hash,password_salt,is_admin
+                           FROM users WHERE username=?""",
+                        (username,),
+                    ).fetchone()
+                    valid = bool(
+                        row
+                        and hmac.compare_digest(
+                            row["password_hash"],
+                            _password_digest(
+                                password, bytes.fromhex(row["password_salt"])
+                            ),
+                        )
+                    )
+                    if not valid:
+                        raise ValueError("用户名或密码错误")
+                    token = _create_session(conn, int(row["id"]))
+                finally:
+                    conn.close()
+                self._pending_session_cookie = token
+                self._cached_user = None
+                is_admin = bool(row["is_admin"])
+                self._send_json(
+                    200,
+                    {
+                        "ok": True,
+                        "user": {
+                            "id": int(row["id"]),
+                            "username": row["username"],
+                            "is_admin": is_admin,
+                        },
+                        "quota": _quota_status(
+                            _account_visitor_id(int(row["id"])),
+                            is_admin=is_admin,
+                        ),
+                    },
+                )
+            except ValueError as exc:
+                self._send_json(401, {"error": str(exc), "code": "login_failed"})
+            except Exception as exc:
+                self._send_json(503, {"error": str(exc)})
+            return
+
+        if self.path == "/auth/logout":
+            token = self._session_token()
+            if token:
+                conn = _usage_connection()
+                try:
+                    conn.execute(
+                        "DELETE FROM sessions WHERE token_hash=?",
+                        (hashlib.sha256(token.encode()).hexdigest(),),
+                    )
+                finally:
+                    conn.close()
+            self._clear_session_cookie = True
+            self._cached_user = None
+            self._send_json(200, {"ok": True})
+            return
+
         if self.path == "/claim-owner-invite":
             try:
                 data = self._read_json()
@@ -887,9 +1239,50 @@ class Handler(SimpleHTTPRequestHandler):
                 self._send_json(503, {"error": str(exc)})
             return
 
+        if self.path == "/payments/manual":
+            try:
+                user = self._current_user()
+                if user is None:
+                    raise AuthRequiredError("请先注册或登录后提交充值凭证")
+                data = self._read_json()
+                order = _create_manual_payment_order(
+                    int(user["id"]),
+                    str(data.get("provider", "")),
+                    str(data.get("plan_id", "")),
+                    str(data.get("provider_order_id", "")),
+                )
+                self._send_json(201, {"ok": True, "order": order})
+            except AuthRequiredError as exc:
+                self._send_json(401, {"error": str(exc), "code": "auth_required"})
+            except ValueError as exc:
+                self._send_json(400, {"error": str(exc)})
+            except Exception as exc:
+                self._send_json(503, {"error": str(exc)})
+            return
+
+        if self.path in {"/admin/payment-orders/approve", "/admin/payment-orders/reject"}:
+            try:
+                user = self._current_user()
+                if user is None or not bool(user["is_admin"]):
+                    raise AuthRequiredError("仅管理员可以审核充值")
+                data = self._read_json()
+                result = _approve_manual_payment_order(
+                    str(data.get("order_id", "")).strip(),
+                    approve=self.path.endswith("/approve"),
+                )
+                self._send_json(200, {"ok": True, **result})
+            except AuthRequiredError as exc:
+                self._send_json(403, {"error": str(exc)})
+            except ValueError as exc:
+                self._send_json(400, {"error": str(exc)})
+            except Exception as exc:
+                self._send_json(503, {"error": str(exc)})
+            return
+
         if self.path == "/chat":
             reservation: str | None = None
             try:
+                user = self._require_user_if_public()
                 visitor_id = self._visitor_id()
                 data = self._read_json()
                 message = str(data.get("message", "")).strip()
@@ -900,8 +1293,14 @@ class Handler(SimpleHTTPRequestHandler):
                 history = data.get("history", [])
                 if not isinstance(history, list):
                     raise ValueError("history must be a list")
-                reservation = _reserve_chat_turn(visitor_id, self._request_ip())
+                is_admin = bool(user and user["is_admin"])
+                reservation = _reserve_chat_turn(
+                    visitor_id, self._request_ip(), is_admin=is_admin
+                )
                 reply, sources = asyncio.run(_chat_reply(persona, provider, message, history))
+                # Model-written delivery/stage cues are internal acting hints.  They must
+                # not be persisted, displayed, or passed to speech synthesis.
+                reply = _strip_stage_directions(reply)
                 _finish_chat_turn(visitor_id, reply)
                 # The model reply was produced successfully, so this turn is consumed even
                 # if the client disconnects while the response body is being written.
@@ -913,8 +1312,12 @@ class Handler(SimpleHTTPRequestHandler):
                         "persona": persona,
                         "provider": provider,
                         "sources": sources,
-                        "quota": _quota_status(visitor_id),
+                        "quota": _quota_status(visitor_id, is_admin=is_admin),
                     },
+                )
+            except AuthRequiredError as exc:
+                self._send_json(
+                    401, {"error": str(exc), "code": "auth_required"}
                 )
             except PaymentRequiredError as exc:
                 self._send_json(
@@ -982,15 +1385,22 @@ class Handler(SimpleHTTPRequestHandler):
         if self.path == "/synthesize":
             tts_reserved = False
             try:
+                user = self._require_user_if_public()
                 visitor_id = self._visitor_id()
                 data = self._read_json()
-                _reserve_tts_segment(visitor_id)
+                _reserve_tts_segment(
+                    visitor_id, is_admin=bool(user and user["is_admin"])
+                )
                 tts_reserved = True
                 wav = _synthesize_wav(
                     str(data.get("persona", "kunkun")).strip().lower(),
                     str(data.get("text", "")),
                 )
                 self._send_bytes(200, wav, "audio/wav")
+            except AuthRequiredError as exc:
+                self._send_json(
+                    401, {"error": str(exc), "code": "auth_required"}
+                )
             except PaymentRequiredError as exc:
                 self._send_json(402, {"error": str(exc), "code": "payment_required"})
             except ValueError as exc:
@@ -1004,6 +1414,7 @@ class Handler(SimpleHTTPRequestHandler):
         if self.path == "/music/generate":
             reserved = False
             try:
+                self._require_user_if_public()
                 data = self._read_json()
                 if data.get("original_confirmed") is not True:
                     raise ValueError("请先确认歌词和旋律用于原创生成")
@@ -1016,6 +1427,10 @@ class Handler(SimpleHTTPRequestHandler):
                 )
                 result["remaining_today"] = remaining
                 self._send_json(200, result)
+            except AuthRequiredError as exc:
+                self._send_json(
+                    401, {"error": str(exc), "code": "auth_required"}
+                )
             except RateLimitError as exc:
                 self._send_json(429, {"error": str(exc), "code": "rate_limited"})
             except ValueError as exc:
@@ -1071,6 +1486,72 @@ class Handler(SimpleHTTPRequestHandler):
             self._send_json(404, {"error": "not found"})
 
     def do_GET(self):
+        if self.path == "/auth/me":
+            user = self._current_user()
+            if user is None:
+                self._send_json(
+                    200,
+                    {
+                        "authenticated": False,
+                        "auth_required": AUTH_REQUIRED,
+                        "payment_enabled": MANUAL_PAYMENT_ENABLED,
+                        "payment_plans": _public_payment_plans(),
+                    },
+                )
+                return
+            is_admin = bool(user["is_admin"])
+            self._send_json(
+                200,
+                {
+                    "authenticated": True,
+                    "auth_required": AUTH_REQUIRED,
+                    "payment_enabled": MANUAL_PAYMENT_ENABLED,
+                    "payment_plans": _public_payment_plans(),
+                    "user": {
+                        "id": int(user["id"]),
+                        "username": user["username"],
+                        "is_admin": is_admin,
+                    },
+                    "quota": _quota_status(
+                        _account_visitor_id(int(user["id"])),
+                        is_admin=is_admin,
+                    ),
+                },
+            )
+            return
+        if self.path == "/payments/orders":
+            user = self._current_user()
+            if user is None:
+                self._send_json(401, {"error": "请先登录", "code": "auth_required"})
+                return
+            conn = _usage_connection()
+            try:
+                rows = conn.execute(
+                    """SELECT order_id,provider,plan_id,amount_fen,credits,status,
+                              provider_order_id,created_at,paid_at
+                       FROM payment_orders WHERE user_id=? ORDER BY created_at DESC LIMIT 20""",
+                    (int(user["id"]),),
+                ).fetchall()
+            finally:
+                conn.close()
+            self._send_json(200, {"orders": [dict(row) for row in rows]})
+            return
+        if self.path == "/admin/payment-orders":
+            user = self._current_user()
+            if user is None or not bool(user["is_admin"]):
+                self._send_json(403, {"error": "仅管理员可以查看充值订单"})
+                return
+            conn = _usage_connection()
+            try:
+                rows = conn.execute(
+                    """SELECT p.*,u.username FROM payment_orders p
+                       JOIN users u ON u.id=p.user_id
+                       ORDER BY p.created_at DESC LIMIT 100"""
+                ).fetchall()
+            finally:
+                conn.close()
+            self._send_json(200, {"orders": [dict(row) for row in rows]})
+            return
         if self.path == "/status":
             visitor_id = self._visitor_id()
             providers = _available_providers()
@@ -1145,16 +1626,65 @@ class Handler(SimpleHTTPRequestHandler):
                     },
                     "rag": rag,
                     "persona_rag": persona_rag,
-                    "quota": _quota_status(visitor_id),
+                    "quota": _quota_status(
+                        visitor_id,
+                        is_admin=bool(
+                            self._current_user()
+                            and self._current_user()["is_admin"]
+                        ),
+                    ),
+                    "auth": {
+                        "required": AUTH_REQUIRED,
+                        "authenticated": self._current_user() is not None,
+                    },
+                    "payment": {
+                        "enabled": MANUAL_PAYMENT_ENABLED,
+                        "mode": "manual_review",
+                        "plans": _public_payment_plans(),
+                    },
                 },
             )
             return
         super().do_GET()
 
+    def _session_token(self) -> str:
+        cookie = SimpleCookie()
+        try:
+            cookie.load(self.headers.get("Cookie", ""))
+            return (
+                cookie.get("kun_session").value
+                if cookie.get("kun_session")
+                else ""
+            )
+        except Exception:
+            return ""
+
+    def _current_user(self) -> sqlite3.Row | None:
+        if hasattr(self, "_cached_user"):
+            return self._cached_user
+        self._cached_user = _user_for_session(self._session_token())
+        return self._cached_user
+
+    def _require_user_if_public(self) -> sqlite3.Row | None:
+        user = self._current_user()
+        if AUTH_REQUIRED and not self._is_direct_local_request() and user is None:
+            raise AuthRequiredError("请先注册或登录后继续")
+        return user
+
     def _visitor_id(self) -> str:
         existing = getattr(self, "_cached_visitor_id", None)
         if existing:
             return existing
+        user = self._current_user()
+        if user is not None:
+            visitor_id = _account_visitor_id(int(user["id"]))
+            self._cached_visitor_id = visitor_id
+            conn = _usage_connection()
+            try:
+                _ensure_visitor(conn, visitor_id)
+            finally:
+                conn.close()
+            return visitor_id
         cookie = SimpleCookie()
         try:
             cookie.load(self.headers.get("Cookie", ""))
@@ -1237,13 +1767,30 @@ class Handler(SimpleHTTPRequestHandler):
         self.send_header("Access-Control-Allow-Headers", "Content-Type")
 
     def end_headers(self):
+        secure = (
+            "; Secure"
+            if self.headers.get("X-Forwarded-Proto", "").lower() == "https"
+            else ""
+        )
         if self._pending_visitor_cookie:
-            secure = "; Secure" if self.headers.get("X-Forwarded-Proto", "").lower() == "https" else ""
             self.send_header(
                 "Set-Cookie",
                 f"kun_visitor={self._pending_visitor_cookie}; Path=/; Max-Age=31536000; HttpOnly; SameSite=Lax{secure}",
             )
             self._pending_visitor_cookie = None
+        if self._pending_session_cookie:
+            self.send_header(
+                "Set-Cookie",
+                f"kun_session={self._pending_session_cookie}; Path=/; "
+                f"Max-Age={SESSION_MAX_AGE}; HttpOnly; SameSite=Lax{secure}",
+            )
+            self._pending_session_cookie = None
+        if self._clear_session_cookie:
+            self.send_header(
+                "Set-Cookie",
+                f"kun_session=; Path=/; Max-Age=0; HttpOnly; SameSite=Lax{secure}",
+            )
+            self._clear_session_cookie = False
         super().end_headers()
 
     def log_message(self, format, *args):

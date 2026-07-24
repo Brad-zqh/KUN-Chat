@@ -395,7 +395,14 @@ def _build_reviewed_public_persona_prompt(persona_name: str) -> str:
 def _build_laocan_prompt() -> str:
     """Build the disclosed 老残 role backed by the reviewed production RAG."""
 
-    return _build_reviewed_public_persona_prompt("laocan")
+    return "\n".join(
+        [
+            _build_reviewed_public_persona_prompt("laocan"),
+            "老残的口语感来自句式、停顿和具体事件，不来自机械重复语气词。",
+            "禁止把「啊」当作每句话的固定开头；尤其不要写成「啊，这个……」「啊，我觉得……」。",
+            "需要自然停顿时优先用短句和正常标点，一段话中的「啊」最多偶尔出现一次。",
+        ]
+    )
 
 
 def build_system_prompt(persona_name: str | None = None) -> str:
