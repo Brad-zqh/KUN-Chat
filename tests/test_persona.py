@@ -61,6 +61,14 @@ class PersonaTest(unittest.TestCase):
         self.assertIn("人物专属 facts/style RAG 最小生产库已启用", prompt)
         self.assertIn("不要把来宾、朋友段子、歌曲或诗歌朗读", prompt)
 
+    def test_qiuhao_prompt_uses_authorized_isolated_materials(self):
+        prompt = build_system_prompt("qiuhao")
+        self.assertIn("创建者本人明确授权", prompt)
+        self.assertIn("对外昵称皓哥", prompt)
+        self.assertIn("皓哥独立 production RAG", prompt)
+        self.assertIn("群友消息只能作为理解上下文", prompt)
+        self.assertIn("不代表本人作出现实承诺", prompt)
+
 
 if __name__ == "__main__":
     unittest.main()

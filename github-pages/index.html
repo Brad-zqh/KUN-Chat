@@ -3,72 +3,35 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-  <meta name="theme-color" content="#0d43ae">
-  <meta name="description" content="KUN Chat：基于审核公开资料的 AI 数字人对话实验。">
+  <meta name="theme-color" content="#1259d5">
+  <meta name="description" content="KUN Chat：基于公开或本人授权资料的 AI 数字人对话实验。">
   <title>KUN Chat · AI 数字人对话</title>
-  <link rel="icon" href="./assets/kun-avatar-ai-v1.png">
-  <link rel="stylesheet" href="./styles.css?v=20260723-2">
+  <style>
+    :root{font-family:Inter,"PingFang SC","Microsoft YaHei",sans-serif;color:#10265a;background:#eef5ff}
+    *{box-sizing:border-box}body{margin:0;min-height:100vh;background:radial-gradient(circle at 75% 10%,#dceaff 0,transparent 35%),linear-gradient(145deg,#f8fbff,#e9f2ff)}
+    main{width:min(980px,calc(100% - 32px));margin:auto;padding:54px 0 64px}.brand{display:flex;align-items:center;gap:16px}.mark{display:grid;place-items:center;width:62px;height:62px;border-radius:20px;color:white;font-size:30px;font-weight:800;background:linear-gradient(145deg,#2e76ed,#0c42b1);box-shadow:0 14px 34px #1656c644}.brand h1{margin:0;font-size:clamp(28px,5vw,46px)}.brand p{margin:5px 0;color:#6680ae}
+    .hero{margin:42px 0 28px;padding:36px;border:1px solid #cfe0ff;border-radius:30px;background:#ffffffd9;box-shadow:0 22px 60px #4473b51f}.hero h2{margin:0 0 12px;font-size:clamp(25px,4vw,38px)}.hero p{line-height:1.75;color:#516b96}.enter{display:inline-flex;align-items:center;justify-content:center;margin-top:12px;padding:15px 25px;border-radius:999px;color:#fff;text-decoration:none;font-weight:700;background:#1762dc;box-shadow:0 12px 30px #1762dc45}.tip{font-size:13px;color:#7b8dac}
+    .roles{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}.role{display:flex;align-items:center;gap:12px;padding:14px;border:1px solid #d7e5fc;border-radius:20px;background:#fff}.role img{width:58px;height:58px;object-fit:cover;border-radius:18px}.role b{display:block;font-size:18px}.role small{color:#7186aa}
+    .notice{margin-top:28px;padding:18px 20px;border-radius:18px;background:#e0ecff;color:#516b96;line-height:1.65}
+    @media(max-width:720px){main{padding-top:28px}.hero{padding:24px}.roles{grid-template-columns:repeat(2,1fr)}.role{display:block}.role img{margin-bottom:8px}}
+  </style>
 </head>
 <body>
-  <div class="app">
-    <header class="topbar">
-      <div class="brand"><span class="brand-mark">K</span><div><strong>KUN Chat</strong><small>AI 数字人 · 赛博同人对话平台</small></div></div>
-      <div class="top-actions">
-        <span id="serviceState" class="service"><i></i>连接服务中</span>
-        <button class="ghost" data-modal="accountModal">登录 / 注册</button>
-        <button class="primary" data-modal="creditsModal">充值</button>
-      </div>
-    </header>
-
-    <aside class="roles" aria-label="角色列表">
-      <p>数字人角色</p>
-      <div id="roleList"></div>
-      <div class="notice"><strong>公开表达实验</strong><br>人格 RAG 与数字人声线组合成 AI 角色。所有角色均非真人本人、团队或工作室。</div>
-    </aside>
-
-    <main class="chat">
-      <section class="chat-head">
-        <img id="heroAvatar" class="hero-avatar" alt="数字人头像">
-        <div><h1><span id="heroName"></span><em>数字人</em></h1><p id="heroNote"></p></div>
-        <button id="quotaButton" class="quota" data-modal="creditsModal">游客免费 6 次</button>
-      </section>
-      <div id="disclosure" class="disclosure"></div>
-      <section id="stream" class="stream" aria-live="polite"></section>
-      <div id="errorBox" class="error" hidden></div>
-      <form id="composer" class="composer">
-        <button id="micButton" class="mic" type="button" title="语音输入">●</button>
-        <textarea id="messageInput" rows="1" maxlength="1600" placeholder="有问题，尽管问"></textarea>
-        <button id="sendButton" class="send" type="submit" aria-label="发送">↑</button>
-      </form>
-      <footer>公开测试版：游客免费对话 6 次。密钥与 Voice ID 仅保存在服务端；本地版不受次数限制。</footer>
-    </main>
-  </div>
-
-  <dialog id="accountModal">
-    <form method="dialog" class="modal-card">
-      <button class="close" value="cancel" aria-label="关闭">×</button>
-      <span class="eyebrow">KUN ACCOUNT</span>
-      <h2>登录或注册</h2>
-      <p>账号系统将用于跨设备同步聊天记录、次数和余额。低成本测试阶段先使用浏览器访客身份。</p>
-      <label>手机号或邮箱<input disabled placeholder="账号服务接入腾讯云后开放"></label>
-      <button class="primary wide" value="cancel">暂未开放</button>
-    </form>
-  </dialog>
-
-  <dialog id="creditsModal">
-    <form method="dialog" class="modal-card credits">
-      <button class="close" value="cancel" aria-label="关闭">×</button>
-      <span class="eyebrow">CREDITS</span>
-      <h2>补充对话次数</h2>
-      <p>游客可免费对话 6 次。支付接入前不会产生扣款。</p>
-      <button class="pack" type="button"><b>¥9.9</b><span>60 次文字对话</span></button>
-      <button class="pack" type="button"><b>¥29.9</b><span>220 次文字对话</span></button>
-      <div class="pay-methods"><span>支付宝</span><span>微信支付</span></div>
-      <small>需要配置你的支付宝/微信商户号与服务端回调后才能启用真实付款。</small>
-    </form>
-  </dialog>
-
-  <script src="./config.js?v=20260723-2"></script>
-  <script src="./app.js?v=20260723-2" defer></script>
+  <main>
+    <div class="brand"><span class="mark">K</span><div><h1>KUN Chat</h1><p>AI 数字人 · 公开表达与本人授权对话实验</p></div></div>
+    <section class="hero">
+      <h2>与四位数字人聊聊</h2>
+      <p>完整 RAG、账号系统与 MiniMax 数字人语音运行在腾讯云主站。GitHub Pages 仅作为稳定入口，不保存 API 密钥。</p>
+      <a class="enter" href="http://124.156.187.19/chat.html?v=20260727-four">进入 KUN Chat 主站 →</a>
+      <p class="tip">若微信内置浏览器拦截跳转，请点击右上角并选择“在浏览器打开”。</p>
+    </section>
+    <section class="roles" aria-label="数字人角色">
+      <article class="role"><img src="./assets/kun-avatar-ai-v1.png" alt="坤坤"><div><b>坤坤</b><small>音乐与舞台</small></div></article>
+      <article class="role"><img src="./assets/fengge-avatar.jpg" alt="峰哥"><div><b>峰哥</b><small>直接、具体观点</small></div></article>
+      <article class="role"><img src="./assets/laocan-avatar.jpg" alt="老残"><div><b>老残</b><small>观察、表达与闲聊</small></div></article>
+      <article class="role"><img src="./assets/qiuhao-avatar.png" alt="皓哥"><div><b>皓哥</b><small>本人授权数字人</small></div></article>
+    </section>
+    <div class="notice">所有角色均为 AI 数字人，不代表真人本人、团队或工作室。请勿将生成内容当作真人声明、投资意见或专业建议。</div>
+  </main>
 </body>
 </html>

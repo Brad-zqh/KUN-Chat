@@ -33,9 +33,8 @@ jobs:
           cp -R github-pages/. _site/
           cp web/assets/kun-avatar-ai-v1.png _site/assets/
           cp web/assets/fengge-avatar.jpg _site/assets/
-          cp web/assets/linqingxia-avatar.jpg _site/assets/
-          cp web/assets/tulei-avatar.jpg _site/assets/
           cp web/assets/laocan-avatar.jpg _site/assets/
+          cp web/assets/qiuhao-avatar.png _site/assets/
       - uses: actions/upload-pages-artifact@v3
         with:
           path: _site

@@ -102,6 +102,7 @@ class AuthTest(unittest.TestCase):
 
     def test_disabled_persona_is_not_published(self):
         self.assertNotIn("tulei", web_server.SUPPORTED_PERSONAS)
+        self.assertNotIn("linqingxia", web_server.SUPPORTED_PERSONAS)
 
 
 if __name__ == "__main__":

@@ -11,7 +11,10 @@ import json
 import os
 import re
 import secrets
+import shutil
 import sqlite3
+import subprocess
+import tempfile
 import threading
 import time
 import urllib.error
@@ -48,7 +51,7 @@ from worker.rag_store import style_context_for as rag_style_context_for
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 WEB_DIR = PROJECT_ROOT / "web"
 # Keep the underlying materials intact, but do not publish disabled personas.
-DISABLED_PERSONAS = frozenset({"tulei"})
+DISABLED_PERSONAS = frozenset({"linqingxia", "tulei"})
 SUPPORTED_PERSONAS = frozenset(PERSONA_REGISTRY) - DISABLED_PERSONAS
 
 # 阶段 20 修复：web 是 nohup 后台拉，**不继承 shell env**，必须自己 load_dotenv
@@ -69,7 +72,7 @@ assert AGENT_NAME, "AGENT_NAME is required"
 configure_egress_proxy()
 configure_local_no_proxy()
 
-_SPEECH_CACHE: dict[tuple[str, str, str], bytes] = {}
+_SPEECH_CACHE: dict[tuple[str, str, str, str], bytes] = {}
 _SPEECH_CACHE_MAX_ITEMS = 64
 USAGE_DB = Path(os.getenv("PUBLIC_USAGE_DB", PROJECT_ROOT / "data" / "public-usage.sqlite3"))
 FREE_CHAT_LIMIT = max(0, int(os.getenv("PUBLIC_FREE_CHAT_LIMIT", "8")))
@@ -96,6 +99,7 @@ def _minimax_websocket_pcm(
     model: str,
     sample_rate: int,
     speed: float,
+    pitch: int,
     timeout: int,
 ) -> bytes:
     """Generate native Chinese PCM through MiniMax's streaming T2A endpoint."""
@@ -109,6 +113,7 @@ def _minimax_websocket_pcm(
     with connect(
         f"{ws_base}/ws/v1/t2a_v2",
         additional_headers={"Authorization": f"Bearer {api_key}"},
+        proxy=os.getenv("MINIMAX_TTS_PROXY") or True,
         open_timeout=min(timeout, 20),
         close_timeout=5,
     ) as websocket:
@@ -132,7 +137,7 @@ def _minimax_websocket_pcm(
                                 "voice_id": voice_id,
                                 "speed": speed,
                                 "vol": 1.0,
-                                "pitch": 0,
+                                "pitch": pitch,
                             },
                             "audio_setting": {
                                 "sample_rate": sample_rate,
@@ -750,6 +755,48 @@ def _minimax_tts_speed_for(persona: str) -> float:
         raise RuntimeError(f"MINIMAX_TTS_SPEED_{persona.upper()} must be a number") from exc
 
 
+def _minimax_tts_pitch_for(persona: str) -> int:
+    raw = os.getenv(
+        f"MINIMAX_TTS_PITCH_{persona.upper()}",
+        os.getenv("MINIMAX_TTS_PITCH", "0"),
+    ).strip()
+    try:
+        pitch = int(raw)
+    except ValueError as exc:
+        raise RuntimeError(f"MINIMAX_TTS_PITCH_{persona.upper()} must be an integer") from exc
+    if not -12 <= pitch <= 12:
+        raise RuntimeError(f"MINIMAX_TTS_PITCH_{persona.upper()} must be between -12 and 12")
+    return pitch
+
+
+def _minimax_tts_model_for(persona: str) -> str:
+    model = os.getenv(
+        f"MINIMAX_TTS_MODEL_{persona.upper()}",
+        os.getenv("MINIMAX_TTS_MODEL", "speech-02-turbo"),
+    ).strip()
+    if not model:
+        raise RuntimeError(f"MINIMAX_TTS_MODEL_{persona.upper()} must not be empty")
+    return model
+
+
+def _validate_wav_audio(data: bytes, *, label: str = "audio") -> None:
+    """Reject header-only or malformed WAV output before it reaches the browser/cache."""
+
+    try:
+        with wave.open(io.BytesIO(data), "rb") as wav:
+            channels = wav.getnchannels()
+            sample_rate = wav.getframerate()
+            frames = wav.getnframes()
+            sample_width = wav.getsampwidth()
+    except (EOFError, wave.Error) as exc:
+        raise RuntimeError(f"{label} is not a valid WAV file") from exc
+    if channels < 1 or sample_rate < 8000 or sample_width < 1 or frames < sample_rate // 10:
+        raise RuntimeError(
+            f"{label} is incomplete: channels={channels}, rate={sample_rate}, "
+            f"sample_width={sample_width}, frames={frames}"
+        )
+
+
 async def _chat_reply(
     persona: str, provider: str, message: str, history: list[dict]
 ) -> tuple[str, list[dict]]:
@@ -850,7 +897,17 @@ def _synthesize_wav(persona: str, text: str) -> bytes:
     if not text:
         raise ValueError("text is required")
     tts_provider = _tts_provider_for(persona)
-    cache_key = (tts_provider, persona, text)
+    cache_variant = ""
+    if tts_provider == "minimax":
+        cache_variant = "|".join(
+            [
+                os.getenv(f"MINIMAX_VOICE_ID_{persona.upper()}", "").strip(),
+                str(_minimax_tts_speed_for(persona)),
+                str(_minimax_tts_pitch_for(persona)),
+                _minimax_tts_model_for(persona),
+            ]
+        )
+    cache_key = (tts_provider, persona, cache_variant, text)
     cached = _SPEECH_CACHE.get(cache_key)
     if cached is not None:
         return cached
@@ -865,8 +922,9 @@ def _synthesize_wav(persona: str, text: str) -> bytes:
                 f"MINIMAX_VOICE_ID_{persona.upper()} 尚未配置；请填写已获授权的 MiniMax Voice ID"
             )
         sample_rate = int(os.getenv("MINIMAX_SAMPLE_RATE", "24000"))
-        model = os.getenv("MINIMAX_TTS_MODEL", "speech-02-turbo")
+        model = _minimax_tts_model_for(persona)
         speed = _minimax_tts_speed_for(persona)
+        pitch = _minimax_tts_pitch_for(persona)
         minimax_api_base = os.getenv(
             "MINIMAX_API_BASE", "https://api.minimaxi.com"
         ).rstrip("/")
@@ -882,6 +940,7 @@ def _synthesize_wav(persona: str, text: str) -> bytes:
                     model,
                     sample_rate,
                     speed,
+                    pitch,
                     timeout,
                 )
                 output = io.BytesIO()
@@ -891,6 +950,7 @@ def _synthesize_wav(persona: str, text: str) -> bytes:
                     wav.setframerate(sample_rate)
                     wav.writeframes(pcm)
                 result = output.getvalue()
+                _validate_wav_audio(result, label="MiniMax WebSocket audio")
                 if len(_SPEECH_CACHE) >= _SPEECH_CACHE_MAX_ITEMS:
                     _SPEECH_CACHE.pop(next(iter(_SPEECH_CACHE)))
                 _SPEECH_CACHE[cache_key] = result
@@ -907,22 +967,26 @@ def _synthesize_wav(persona: str, text: str) -> bytes:
             "model": model,
             "text": text,
             "stream": False,
+            "output_format": "url",
             "voice_setting": {
                 "voice_id": voice_id,
                 "speed": speed,
                 "vol": 1.0,
-                "pitch": 0,
+                "pitch": pitch,
             },
             "audio_setting": {
                 "sample_rate": sample_rate,
                 "bitrate": 128000,
-                "format": "pcm",
+                "format": "mp3",
                 "channel": 1,
             },
             "language_boost": "Chinese",
         }
+        http_base = os.getenv(
+            "MINIMAX_TTS_HTTP_BASE", "https://api-uw.minimax.io"
+        ).rstrip("/")
         request = urllib.request.Request(
-            f"{minimax_api_base}/v1/t2a_v2",
+            f"{http_base}/v1/t2a_v2",
             data=json.dumps(payload, ensure_ascii=False).encode("utf-8"),
             headers={
                 "Authorization": f"Bearer {api_key}",
@@ -950,7 +1014,44 @@ def _synthesize_wav(persona: str, text: str) -> bytes:
             raise RuntimeError(
                 f"MiniMax TTS 错误 {base_resp.get('status_code')}: {base_resp.get('status_msg')}"
             )
-        audio_hex = (result_json.get("data") or {}).get("audio", "")
+        audio_value = str((result_json.get("data") or {}).get("audio", "")).strip()
+        if audio_value.startswith(("https://", "http://")):
+            with tempfile.TemporaryDirectory(prefix="kun-tts-") as temp_dir:
+                mp3_path = Path(temp_dir) / "speech.mp3"
+                wav_path = Path(temp_dir) / "speech.wav"
+                with urllib.request.urlopen(audio_value, timeout=timeout) as response:
+                    mp3_path.write_bytes(response.read())
+                if mp3_path.stat().st_size < 1024:
+                    raise RuntimeError(
+                        f"MiniMax TTS HTTP returned incomplete audio ({mp3_path.stat().st_size} bytes)"
+                    )
+                configured_ffmpeg = os.getenv("FFMPEG_BINARY", "").strip()
+                ffmpeg = configured_ffmpeg or shutil.which("ffmpeg")
+                if not ffmpeg:
+                    bundled = Path(
+                        r"D:\LocalDevDeps\OneDriveMirror\LLMs\kun-material\tools\python\imageio_ffmpeg\binaries\ffmpeg-win-x86_64-v7.1.exe"
+                    )
+                    if bundled.exists():
+                        ffmpeg = str(bundled)
+                if not ffmpeg:
+                    raise RuntimeError("ffmpeg is required to convert MiniMax audio")
+                completed = subprocess.run(
+                    [
+                        str(ffmpeg), "-y", "-i", str(mp3_path),
+                        "-ac", "1", "-ar", str(sample_rate), str(wav_path),
+                    ],
+                    check=False,
+                    capture_output=True,
+                )
+                if completed.returncode != 0 or not wav_path.exists():
+                    raise RuntimeError("MiniMax TTS audio conversion failed")
+                result = wav_path.read_bytes()
+            _validate_wav_audio(result, label="MiniMax HTTP audio")
+            if len(_SPEECH_CACHE) >= _SPEECH_CACHE_MAX_ITEMS:
+                _SPEECH_CACHE.pop(next(iter(_SPEECH_CACHE)))
+            _SPEECH_CACHE[cache_key] = result
+            return result
+        audio_hex = audio_value
         if not audio_hex:
             raise RuntimeError("MiniMax TTS 没有返回音频")
         pcm = bytes.fromhex(audio_hex)
@@ -965,6 +1066,7 @@ def _synthesize_wav(persona: str, text: str) -> bytes:
             wav.setframerate(sample_rate)
             wav.writeframes(pcm)
         result = output.getvalue()
+        _validate_wav_audio(result, label="MiniMax HTTP PCM audio")
         if len(_SPEECH_CACHE) >= _SPEECH_CACHE_MAX_ITEMS:
             _SPEECH_CACHE.pop(next(iter(_SPEECH_CACHE)))
         _SPEECH_CACHE[cache_key] = result
@@ -1289,7 +1391,14 @@ class Handler(SimpleHTTPRequestHandler):
                 if not message:
                     raise ValueError("message is required")
                 persona = str(data.get("persona", "kunkun")).strip().lower()
-                provider = str(data.get("provider", "minimax")).strip().lower()
+                provider = str(data.get("provider", "deepseek")).strip().lower()
+                # Stale frontends used MiniMax for both text and speech.  The
+                # production split is now DeepSeek for chat and MiniMax for
+                # cloned-persona TTS.  Accept those cached requests, but route
+                # their text generation through DeepSeek so existing phones do
+                # not fail with an obsolete MiniMax chat credential.
+                if provider == "minimax" and os.getenv("DEEPSEEK_API_KEY", "").strip():
+                    provider = "deepseek"
                 history = data.get("history", [])
                 if not isinstance(history, list):
                     raise ValueError("history must be a list")

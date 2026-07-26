@@ -104,9 +104,12 @@ try {
         $diffCheck = & git -C $RepoRoot diff --cached --check 2>&1
         if ($LASTEXITCODE -ne 0) { throw "git diff --check failed: $($diffCheck -join ' ')" }
 
+        # Rebuildable dependencies live outside OneDrive. Do not add a junction
+        # back into the repository: Microsoft does not support OneDrive sync
+        # roots containing these dependency links reliably.
         $pythonCandidates = @(
-            (Join-Path $RepoRoot ".venv\Scripts\python.exe"),
-            "D:\OneDrive\LLMs\talk-to-fengge\.venv\Scripts\python.exe"
+            "D:\LocalDevDeps\OneDriveMirror\LLMs\KUN-Chat\.venv\Scripts\python.exe",
+            "D:\LocalDevDeps\OneDriveMirror\LLMs\talk-to-fengge\.venv\Scripts\python.exe"
         )
         $python = $pythonCandidates | Where-Object { Test-Path -LiteralPath $_ } | Select-Object -First 1
         if (-not $python) { throw "No tested Python environment is available." }

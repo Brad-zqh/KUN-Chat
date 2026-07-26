@@ -6,7 +6,6 @@
   <title>KUN Chat</title>
   <link rel="preload" as="image" href="/assets/kun-avatar-ai-v1.png?v=20260723-avatar2" />
   <link rel="preload" as="image" href="/assets/fengge-avatar.jpg?v=20260724-avatar3" />
-  <link rel="preload" as="image" href="/assets/linqingxia-avatar.jpg?v=20260724-avatar3" />
   <link rel="preload" as="image" href="/assets/laocan-avatar.jpg?v=20260724-avatar3" />
   <style>
     :root {
@@ -259,13 +258,13 @@
           <span class="persona-card-avatar"><img src="/assets/fengge-avatar.jpg?v=20260724-avatar3" alt="峰哥" /></span>
           <span class="persona-card-copy"><strong>峰哥</strong><small>直接、具体观点</small></span>
         </button>
-        <button class="persona-card" type="button" data-persona-switch="linqingxia" aria-label="切换到青霞">
-          <span class="persona-card-avatar"><img src="/assets/linqingxia-avatar.jpg?v=20260724-avatar3" alt="青霞" /></span>
-          <span class="persona-card-copy"><strong>青霞</strong><small>电影、阅读与审美</small></span>
-        </button>
         <button class="persona-card" type="button" data-persona-switch="laocan" aria-label="切换到老残">
           <span class="persona-card-avatar"><img src="/assets/laocan-avatar.jpg?v=20260724-avatar3" alt="老残" /></span>
           <span class="persona-card-copy"><strong>老残</strong><small>阅读、写作与生活</small></span>
+        </button>
+        <button class="persona-card" type="button" data-persona-switch="qiuhao" aria-label="切换到皓哥">
+          <span class="persona-card-avatar"><img src="/assets/qiuhao-avatar.png?v=20260726-photo1" alt="皓哥" /></span>
+          <span><strong>皓哥</strong><small>本人授权数字人</small></span>
         </button>
       </div>
     </nav>
@@ -317,8 +316,8 @@
         </div>
         <div class="auth-error" id="authError"></div>
       </section></div>
-      <div class="field"><label for="persona">角色</label><select id="persona"><option value="kunkun">坤坤</option><option value="fengge">峰哥</option><option value="linqingxia">青霞</option><option value="laocan">老残</option></select></div>
-      <div class="field"><label for="provider">文字模型</label><select id="provider"><option value="minimax">MiniMax M2.7</option><option value="deepseek">DeepSeek Chat</option></select></div>
+      <div class="field"><label for="persona">角色</label><select id="persona"><option value="kunkun">坤坤</option><option value="fengge">峰哥</option><option value="laocan">老残</option><option value="qiuhao">皓哥</option></select></div>
+      <div class="field"><label for="provider">文字模型</label><select id="provider"><option value="deepseek">DeepSeek Chat</option></select></div>
       <p class="key-help" id="keyHelp">文字模型尚未配置 API Key。请在项目的 .env.local 中填写所选模型的 Key，然后重启网页服务。</p>
       <button class="action primary" id="applySettings">应用设置</button>
       <button class="action secondary" id="clearChat">清空当前对话</button>
@@ -383,30 +382,33 @@
 
   <script>
     const $ = (id) => document.getElementById(id);
-    const ACTIVE_PERSONAS = new Set(['kunkun','fengge','linqingxia','laocan']);
+    const ACTIVE_PERSONAS = new Set(['kunkun','fengge','laocan','qiuhao']);
     const storedPersona = localStorage.getItem('persona') || 'kunkun';
     const state = {
       persona: ACTIVE_PERSONAS.has(storedPersona) ? storedPersona : 'kunkun',
-      provider: localStorage.getItem('provider') || 'deepseek',
+      // MiniMax is reserved for persona TTS.  Old browser sessions may still
+      // contain `provider=minimax`, so migrate them to the stable DeepSeek
+      // text route instead of repeatedly hitting an obsolete chat key.
+      provider: 'deepseek',
       histories: JSON.parse(localStorage.getItem('chat-histories') || '{}'),
       status: { providers: {}, voxcpm: false, tts_provider:'voxcpm', music:{ready:false,model:'music-3.0-free',daily_limit:3}, rag: {sources:0,chunks:0}, persona_rag:{}, quota:{free_limit:8,free_used:0,free_remaining:8,credits:0,can_chat:true,payment_enabled:false} },
       auth: { authenticated:false, auth_required:false, user:null },
       busy: false, audio: null, audioOwner: null
     };
-    const names = { kunkun: '坤坤', fengge: '峰哥', linqingxia: '青霞', laocan: '老残' };
-    const realNames = { kunkun: '蔡徐坤', fengge: '峰哥', linqingxia: '林青霞', laocan: '老残' };
+    const names = { kunkun: '坤坤', fengge: '峰哥', laocan: '老残', qiuhao: '皓哥' };
+    const realNames = { kunkun: '蔡徐坤', fengge: '峰哥', laocan: '老残', qiuhao: '皓哥' };
     const KUN_AVATAR_SRC = '/assets/kun-avatar-ai-v1.png?v=20260723-avatar2';
     const AVATARS = {
       kunkun: KUN_AVATAR_SRC,
       fengge: '/assets/fengge-avatar.jpg?v=20260724-avatar3',
-      linqingxia: '/assets/linqingxia-avatar.jpg?v=20260724-avatar3',
-      laocan: '/assets/laocan-avatar.jpg?v=20260724-avatar3'
+      laocan: '/assets/laocan-avatar.jpg?v=20260724-avatar3',
+      qiuhao: '/assets/qiuhao-avatar.png?v=20260726-photo1'
     };
     const welcomes = {
       kunkun: '你好，我是坤坤。想聊音乐、舞台、创作，或者最近的状态，都可以。',
       fengge: '有什么问题你就问。先说明一下，这是根据公开表达资料设计的 AI 角色，不是峰哥本人。',
-      linqingxia: '你好。可以聊电影、阅读、写作和公开的人生感悟。这里是基于公开资料设计的 AI 角色，不是林青霞本人。',
-      laocan: '你好，我是老残。今天有什么想和我聊聊的吗？这里是根据公开表达资料设计的 AI 角色，不是老残本人。'
+      laocan: '你好，我是老残。今天有什么想和我聊聊的吗？这里是根据公开表达资料设计的 AI 角色，不是老残本人。',
+      qiuhao: '你好，我是皓哥的私人 AI 数字人。这里使用本人授权资料，但不能代替本人作出现实承诺。'
     };
     let selectedPaymentPlan='starter', selectedPaymentProvider='alipay';
 

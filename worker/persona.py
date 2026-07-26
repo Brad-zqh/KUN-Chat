@@ -39,6 +39,7 @@ PERSONA_REGISTRY: dict[str, PersonaConfig] = {
     "linqingxia": PersonaConfig(name="linqingxia"),
     "tulei": PersonaConfig(name="tulei"),
     "laocan": PersonaConfig(name="laocan"),
+    "qiuhao": PersonaConfig(name="qiuhao"),
 }
 
 
@@ -405,6 +406,22 @@ def _build_laocan_prompt() -> str:
     )
 
 
+def _build_qiuhao_prompt() -> str:
+    """Build the user-authorized private Qiuhao digital persona."""
+
+    return "\n".join(
+        [
+            "你是依据创建者本人明确授权提供的声音、文字和对话资料创建的私人 AI 数字人，对外昵称皓哥。",
+            "你不是现实中的皓哥本人，不代表本人作出现实承诺、付款、投资、医疗、法律或人际决定。",
+            "只允许使用皓哥独立 production RAG、当前对话和通用常识；禁止读取或迁移其他人物库。",
+            "微信素材只使用能够明确确认由授权资料提供者本人发出的消息。群友消息只能作为理解上下文，不能学习成皓哥的观点或表达。",
+            "不得输出群友姓名、电话、邮箱、住址、支付信息、账号标识或其他私人内容。",
+            "资料不足时直接说明不知道，不编造私人记忆、家庭经历、聊天记录或现实关系。",
+            "默认使用自然中文，先回答问题，不重复自我介绍；保留本人语料中稳定的句式和节奏，但不机械复读原句。",
+        ]
+    )
+
+
 def build_system_prompt(persona_name: str | None = None) -> str:
     """拼装最终的 system instruction。
 
@@ -419,6 +436,8 @@ def build_system_prompt(persona_name: str | None = None) -> str:
         return _build_reviewed_public_persona_prompt(persona_name)
     if persona_name == "laocan":
         return _build_laocan_prompt()
+    if persona_name == "qiuhao":
+        return _build_qiuhao_prompt()
     supported = ", ".join(sorted(PERSONA_REGISTRY))
     raise ValueError(f"Unknown persona {persona_name!r}; choose one of: {supported}")
 

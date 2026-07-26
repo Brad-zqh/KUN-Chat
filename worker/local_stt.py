@@ -23,8 +23,18 @@ for _env_name in (".env", ".env.local"):
 MATERIAL_ROOT = Path(
     os.getenv("KUN_MATERIAL_DIR", r"D:\OneDrive\LLMs\kun-material")
 )
-VENDOR_ROOT = MATERIAL_ROOT / "tools" / "python"
-MODEL_CACHE = MATERIAL_ROOT / "tools" / "models"
+_MIGRATED_VENDOR_ROOT = Path(
+    r"D:\LocalDevDeps\OneDriveMirror\LLMs\kun-material\tools\python"
+)
+VENDOR_ROOT = Path(
+    os.getenv(
+        "KUN_STT_VENDOR_ROOT",
+        str(_MIGRATED_VENDOR_ROOT if _MIGRATED_VENDOR_ROOT.exists() else MATERIAL_ROOT / "tools" / "python"),
+    )
+)
+MODEL_CACHE = Path(
+    os.getenv("KUN_STT_MODEL_CACHE", str(MATERIAL_ROOT / "tools" / "models"))
+)
 MAX_AUDIO_BYTES = max(1, int(os.getenv("KUN_STT_MAX_AUDIO_MB", "12"))) * 1024 * 1024
 MAX_AUDIO_SECONDS = max(5, int(os.getenv("KUN_STT_MAX_AUDIO_SECONDS", "45")))
 

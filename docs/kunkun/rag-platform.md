@@ -31,7 +31,7 @@ MINIMAX_TTS_MODEL=speech-2.8-turbo
 ## 手动检查
 
 ```powershell
-.\.venv\Scripts\python.exe -m worker.rag_store --query "舞台紧张怎么办"
+& "D:\LocalDevDeps\OneDriveMirror\LLMs\KUN-Chat\.venv\Scripts\python.exe" -m worker.rag_store --query "舞台紧张怎么办"
 ```
 
 网页入口：`http://127.0.0.1:8766/chat.html`
