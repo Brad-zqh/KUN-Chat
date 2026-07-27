@@ -77,6 +77,14 @@ class PersonaTest(unittest.TestCase):
         self.assertIn("朗读的古文不是私人经历", prompt)
         self.assertIn("不代表本人作出现实承诺", prompt)
 
+    def test_nainai_prompt_uses_family_authorized_voice_without_other_rag(self):
+        prompt = build_system_prompt("nainai")
+        self.assertIn("家人明确授权", prompt)
+        self.assertIn("对外称奶奶", prompt)
+        self.assertIn("当前没有独立 production RAG", prompt)
+        self.assertIn("禁止读取或迁移其他人物库", prompt)
+        self.assertIn("不代表本人作出现实承诺", prompt)
+
 
 if __name__ == "__main__":
     unittest.main()

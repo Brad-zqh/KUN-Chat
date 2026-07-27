@@ -53,6 +53,9 @@ WEB_DIR = PROJECT_ROOT / "web"
 # Keep the underlying materials intact, but do not publish disabled personas.
 DISABLED_PERSONAS = frozenset({"linqingxia", "tulei"})
 SUPPORTED_PERSONAS = frozenset(PERSONA_REGISTRY) - DISABLED_PERSONAS
+RAG_PERSONAS = frozenset(
+    {"kunkun", "fengge", "linqingxia", "tulei", "laocan", "qiuhao", "qingliangshanren"}
+)
 
 # 阶段 20 修复：web 是 nohup 后台拉，**不继承 shell env**，必须自己 load_dotenv
 # 否则 AGENT_NAME 走默认值 "talk-to-me-agent"，跟 worker 的 "talk-to-me-dev3" 不匹配，
@@ -819,7 +822,7 @@ async def _chat_reply(
 
     sources: list[dict] = []
     messages = [{"role": "system", "content": build_system_prompt(persona)}]
-    if persona in SUPPORTED_PERSONAS:
+    if persona in RAG_PERSONAS:
         style_context = rag_style_context_for(
             message, limit=4, max_chars=1100, persona=persona
         )
@@ -1703,6 +1706,15 @@ class Handler(SimpleHTTPRequestHandler):
                 rag = {"sources": 0, "chunks": 0, "error": str(exc)}
             persona_rag = {}
             for persona in SUPPORTED_PERSONAS:
+                if persona not in RAG_PERSONAS:
+                    persona_rag[persona] = {
+                        "sources": 0,
+                        "chunks": 0,
+                        "style_examples": 0,
+                        "source_policy": "no_rag",
+                        "training_permission": "family_authorized_voice_only",
+                    }
+                    continue
                 try:
                     persona_rag[persona] = rag_status(persona)
                 except Exception as exc:
