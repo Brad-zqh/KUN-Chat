@@ -267,6 +267,10 @@
           <span class="persona-card-avatar"><img src="/assets/qiuhao-avatar.png?v=20260726-photo1" alt="皓哥" /></span>
           <span><strong>皓哥</strong><small>本人授权数字人</small></span>
         </button>
+        <button class="persona-card" type="button" data-persona-switch="qingliangshanren" aria-label="切换到清凉山人">
+          <span class="persona-card-avatar"><img src="/assets/qingliangshanren-avatar.jpg?v=20260727-photo1" alt="清凉山人" /></span>
+          <span><strong>清凉山人</strong><small>家人授权数字人</small></span>
+        </button>
       </div>
     </nav>
 
@@ -317,7 +321,7 @@
         </div>
         <div class="auth-error" id="authError"></div>
       </section></div>
-      <div class="field"><label for="persona">角色</label><select id="persona"><option value="kunkun">坤坤</option><option value="fengge">峰哥</option><option value="laocan">老残</option><option value="qiuhao">皓哥</option></select></div>
+      <div class="field"><label for="persona">角色</label><select id="persona"><option value="kunkun">坤坤</option><option value="fengge">峰哥</option><option value="laocan">老残</option><option value="qiuhao">皓哥</option><option value="qingliangshanren">清凉山人</option></select></div>
       <div class="field"><label for="provider">文字模型</label><select id="provider"><option value="deepseek">DeepSeek Chat</option></select></div>
       <p class="key-help" id="keyHelp">文字模型尚未配置 API Key。请在项目的 .env.local 中填写所选模型的 Key，然后重启网页服务。</p>
       <button class="action primary" id="applySettings">应用设置</button>
@@ -383,7 +387,7 @@
 
   <script>
     const $ = (id) => document.getElementById(id);
-    const ACTIVE_PERSONAS = new Set(['kunkun','fengge','laocan','qiuhao']);
+    const ACTIVE_PERSONAS = new Set(['kunkun','fengge','laocan','qiuhao','qingliangshanren']);
     const storedPersona = localStorage.getItem('persona') || 'kunkun';
     const state = {
       persona: ACTIVE_PERSONAS.has(storedPersona) ? storedPersona : 'kunkun',
@@ -396,20 +400,22 @@
       auth: { authenticated:false, auth_required:false, user:null },
       busy: false, audio: null, audioOwner: null
     };
-    const names = { kunkun: '坤坤', fengge: '峰哥', laocan: '老残', qiuhao: '皓哥' };
-    const realNames = { kunkun: '蔡徐坤', fengge: '峰哥', laocan: '老残', qiuhao: '皓哥' };
+    const names = { kunkun: '坤坤', fengge: '峰哥', laocan: '老残', qiuhao: '皓哥', qingliangshanren: '清凉山人' };
+    const realNames = { kunkun: '蔡徐坤', fengge: '峰哥', laocan: '老残', qiuhao: '皓哥', qingliangshanren: '清凉山人' };
     const KUN_AVATAR_SRC = '/assets/kun-avatar-ai-v1.png?v=20260723-avatar2';
     const AVATARS = {
       kunkun: KUN_AVATAR_SRC,
       fengge: '/assets/fengge-avatar.jpg?v=20260724-avatar3',
       laocan: '/assets/laocan-avatar.jpg?v=20260724-avatar3',
-      qiuhao: '/assets/qiuhao-avatar.png?v=20260726-photo1'
+      qiuhao: '/assets/qiuhao-avatar.png?v=20260726-photo1',
+      qingliangshanren: '/assets/qingliangshanren-avatar.jpg?v=20260727-photo1'
     };
     const welcomes = {
       kunkun: '你好，我是坤坤。想聊音乐、舞台、创作，或者最近的状态，都可以。',
       fengge: '有什么问题你就问。先说明一下，这是根据公开表达资料设计的 AI 角色，不是峰哥本人。',
       laocan: '你好，我是老残。今天有什么想和我聊聊的吗？这里是根据公开表达资料设计的 AI 角色，不是老残本人。',
-      qiuhao: '你好，我是皓哥的私人 AI 数字人。这里使用本人授权资料，但不能代替本人作出现实承诺。'
+      qiuhao: '你好，我是皓哥的私人 AI 数字人。这里使用本人授权资料，但不能代替本人作出现实承诺。',
+      qingliangshanren: '你好，我是清凉山人的家庭授权 AI 数字人。可以聊阅读、生活和人生感悟，但不能代替本人作出现实承诺。'
     };
     let selectedPaymentPlan='starter', selectedPaymentProvider='alipay';
 

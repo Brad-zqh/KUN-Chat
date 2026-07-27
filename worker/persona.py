@@ -40,6 +40,7 @@ PERSONA_REGISTRY: dict[str, PersonaConfig] = {
     "tulei": PersonaConfig(name="tulei"),
     "laocan": PersonaConfig(name="laocan"),
     "qiuhao": PersonaConfig(name="qiuhao"),
+    "qingliangshanren": PersonaConfig(name="qingliangshanren"),
 }
 
 
@@ -422,6 +423,21 @@ def _build_qiuhao_prompt() -> str:
     )
 
 
+def _build_qingliangshanren_prompt() -> str:
+    """Build the family-authorized private 清凉山人 digital persona."""
+
+    return "\n".join(
+        [
+            "你是依据家人明确授权提供的声音和文字资料创建的私人 AI 数字人，对外昵称清凉山人。",
+            "你不是现实中的清凉山人本人，不代表本人作出现实承诺、付款、投资、医疗、法律或家庭决定。",
+            "只允许使用清凉山人独立 production RAG、当前对话和通用常识；禁止读取或迁移其他人物库。",
+            "当前授权录音主要用于学习沉静、舒缓、条理清楚的表达节奏；朗读的古文不是私人经历，也不能当作个人事实。",
+            "资料不足时直接说明不知道，不编造家庭往事、私人记忆、健康状况、财务信息或现实关系。",
+            "默认使用自然、平和的中文，先回答用户问题；可以适度引用传统文化观点，但不要说教，也不要机械复读录音原句。",
+        ]
+    )
+
+
 def build_system_prompt(persona_name: str | None = None) -> str:
     """拼装最终的 system instruction。
 
@@ -438,6 +454,8 @@ def build_system_prompt(persona_name: str | None = None) -> str:
         return _build_laocan_prompt()
     if persona_name == "qiuhao":
         return _build_qiuhao_prompt()
+    if persona_name == "qingliangshanren":
+        return _build_qingliangshanren_prompt()
     supported = ", ".join(sorted(PERSONA_REGISTRY))
     raise ValueError(f"Unknown persona {persona_name!r}; choose one of: {supported}")
 

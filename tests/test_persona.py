@@ -69,6 +69,14 @@ class PersonaTest(unittest.TestCase):
         self.assertIn("群友消息只能作为理解上下文", prompt)
         self.assertIn("不代表本人作出现实承诺", prompt)
 
+    def test_qingliangshanren_prompt_uses_family_authorized_isolated_materials(self):
+        prompt = build_system_prompt("qingliangshanren")
+        self.assertIn("家人明确授权", prompt)
+        self.assertIn("对外昵称清凉山人", prompt)
+        self.assertIn("清凉山人独立 production RAG", prompt)
+        self.assertIn("朗读的古文不是私人经历", prompt)
+        self.assertIn("不代表本人作出现实承诺", prompt)
+
 
 if __name__ == "__main__":
     unittest.main()

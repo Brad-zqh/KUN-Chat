@@ -30,6 +30,7 @@ PERSONA_DB_DEFAULTS = {
     "tulei": Path(r"D:\OneDrive\LLMs\persona-material\tulei\production\tulei-rag.sqlite3"),
     "laocan": Path(r"D:\OneDrive\LLMs\persona-material\Laocan\production\laocan-rag.sqlite3"),
     "qiuhao": Path(r"D:\OneDrive\LLMs\persona-material\Qiuhao\production\qiuhao-rag.sqlite3"),
+    "qingliangshanren": Path(r"D:\OneDrive\LLMs\persona-material\Qingliangshanren\production\qingliangshanren-rag.sqlite3"),
 }
 _FORBIDDEN_SOURCE_PARTS = {
     "raw_segments_unreviewed",
