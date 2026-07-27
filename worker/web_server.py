@@ -985,8 +985,14 @@ def _synthesize_wav(persona: str, text: str) -> bytes:
             },
             "language_boost": "Chinese",
         }
+        # Voice IDs are scoped to the MiniMax platform on which they were
+        # created.  Prefer the explicitly configured HTTP endpoint, then the
+        # shared API base used for cloning.  Falling back to api-uw for an
+        # api.minimax.io voice can return a nominally successful, but nearly
+        # empty, MP3.
         http_base = os.getenv(
-            "MINIMAX_TTS_HTTP_BASE", "https://api-uw.minimax.io"
+            "MINIMAX_TTS_HTTP_BASE",
+            os.getenv("MINIMAX_API_BASE", "https://api.minimax.io"),
         ).rstrip("/")
         request = urllib.request.Request(
             f"{http_base}/v1/t2a_v2",
