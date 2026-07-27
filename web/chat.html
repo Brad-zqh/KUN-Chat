@@ -246,7 +246,7 @@
         <div class="avatar kun-avatar" id="topAvatar"><img src="/assets/kun-avatar-ai-v1.png?v=20260723-avatar2" onerror="this.onerror=null;this.src='/assets/kun-avatar-photo-v1.png?v=20260723-avatar2'" alt="KUN Chat 动漫头像" /></div>
         <div class="title-wrap"><div class="title" id="title">KUN Chat</div><div class="subtitle" id="subtitle">公开表达风格 · 本地语料 RAG</div></div>
       </div>
-      <div class="status"><span class="dot" id="statusDot"></span><span class="service-status" id="statusText">正在检查</span><button class="music-trigger" id="musicBtn" type="button">♫ 原创清唱</button><span class="quota-badge" id="quotaText">免费 8 次</span></div>
+      <div class="status"><span class="dot" id="statusDot"></span><span class="service-status" id="statusText">正在检查</span><button class="music-trigger" id="musicBtn" type="button">♫ 原创清唱</button><span class="quota-badge" id="quotaText">免费 4 次</span></div>
     </header>
 
     <nav class="persona-rail" aria-label="选择数字人角色">
@@ -305,7 +305,7 @@
       <div id="authCardHome"><section class="auth-card" id="authCard">
         <div id="authGuest">
           <h3>快速开始</h3>
-          <p class="auth-note">注册后可免费对话 8 次；额度用完后可提交人工充值凭证。</p>
+          <p class="auth-note">注册后可免费对话 4 次；额度用完后可提交人工充值凭证。</p>
           <div class="auth-fields">
             <input id="authUsername" autocomplete="username" maxlength="32" placeholder="用户名（推荐 2–20 位）" />
             <input id="authPassword" type="password" autocomplete="current-password" maxlength="128" placeholder="密码（至少 6 位）" />
@@ -345,7 +345,7 @@
     <section class="auth-modal">
       <button class="auth-modal-close" id="closeAuthModal" type="button" aria-label="暂时关闭登录窗口">×</button>
       <h2 class="auth-modal-title" id="authModalTitle">注册或登录 KUN Chat</h2>
-      <p class="auth-modal-subtitle">新用户可免费对话 8 次。用户名推荐 2–20 位，密码最低 6 位，规则尽量简单。</p>
+      <p class="auth-modal-subtitle">新用户可免费对话 4 次。用户名推荐 2–20 位，密码最低 6 位，规则尽量简单。</p>
       <div id="authModalContent"></div>
     </section>
   </div>
@@ -354,7 +354,7 @@
     <section class="paywall">
       <h2 id="paywallTitle">8 次免费对话已用完</h2>
       <p>选择支持额度并扫码。个人收款码不支持自动回调，付款后请填写交易单号，管理员人工核对后到账。</p>
-      <div class="paywall-count">免费剩余 0 / 8</div>
+      <div class="paywall-count">免费剩余 0 / 4</div>
       <div class="plans" id="paymentPlans">
         <button class="plan active" type="button" data-plan="starter"><strong>¥3.9</strong><span>20 次对话</span></button>
         <button class="plan" type="button" data-plan="regular"><strong>¥9.9</strong><span>60 次对话</span></button>
@@ -400,7 +400,7 @@
       // text route instead of repeatedly hitting an obsolete chat key.
       provider: 'deepseek',
       histories: JSON.parse(localStorage.getItem('chat-histories') || '{}'),
-      status: { providers: {}, voxcpm: false, tts_provider:'voxcpm', music:{ready:false,model:'music-3.0-free',daily_limit:3}, rag: {sources:0,chunks:0}, persona_rag:{}, quota:{free_limit:8,free_used:0,free_remaining:8,credits:0,can_chat:true,payment_enabled:false} },
+      status: { providers: {}, voxcpm: false, tts_provider:'voxcpm', music:{ready:false,model:'music-3.0-free',daily_limit:3}, rag: {sources:0,chunks:0}, persona_rag:{}, quota:{free_limit:4,free_used:0,free_remaining:4,credits:0,can_chat:true,payment_enabled:false} },
       auth: { authenticated:false, auth_required:false, user:null },
       busy: false, audio: null, audioOwner: null
     };
@@ -601,7 +601,7 @@
       const rag=(state.status.persona_rag||{})[state.persona]||state.status.rag||{sources:0,chunks:0,style_examples:0};
       const personaTts=(state.status.tts_providers||{})[state.persona]||state.status.tts_provider;
       const voiceName=personaTts==='minimax'?'MiniMax TTS':'VoxCPM';
-      const quota=state.status.quota||{free_limit:8,free_remaining:8,credits:0,can_chat:true};
+      const quota=state.status.quota||{free_limit:4,free_remaining:4,credits:0,can_chat:true};
       $('statusDot').classList.toggle('ready', ready && vox); $('statusText').textContent=ready?(vox?'文字与语音就绪':'文字就绪 · 语音离线'):'等待模型 Key';
       const available=quota.available_total??((quota.free_remaining||0)+(quota.credits||0));
       $('quotaText').textContent=quota.unlimited?'测试不限次数':(quota.credits>0?`可用 ${available} 次`:`免费 ${quota.free_remaining}/${quota.free_limit}`);
@@ -615,7 +615,7 @@
     }
     function openPaywall(){
       if(!state.auth.authenticated){openAccount();$('authError').textContent='请先注册或登录，再提交充值凭证';return;}
-      $('paywallTitle').textContent=`${state.status.quota?.free_limit??8} 次免费对话已用完`;
+      $('paywallTitle').textContent=`${state.status.quota?.free_limit??4} 次免费对话已用完`;
       $('paywall').classList.add('open');
     }
     function closePaywall(){ $('paywall').classList.remove('open'); }
@@ -640,7 +640,7 @@
         $('authUserName').textContent=`${user.username}${user.is_admin?' · 管理员':''}`;
         const q=state.status.quota||state.auth.quota||{};
         const available=q.available_total??((q.free_remaining||0)+(q.credits||0));
-        $('authQuotaText').textContent=q.unlimited?'不限次数':(q.credits>0?`可用 ${available} 次，其中充值 ${q.credits} 次`:`免费剩余 ${q.free_remaining??0}/${q.free_limit??8}`);
+        $('authQuotaText').textContent=q.unlimited?'不限次数':(q.credits>0?`可用 ${available} 次，其中充值 ${q.credits} 次`:`免费剩余 ${q.free_remaining??0}/${q.free_limit??4}`);
       }
     }
     async function checkAuth(){

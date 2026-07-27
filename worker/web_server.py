@@ -78,7 +78,7 @@ configure_local_no_proxy()
 _SPEECH_CACHE: dict[tuple[str, str, str, str], bytes] = {}
 _SPEECH_CACHE_MAX_ITEMS = 64
 USAGE_DB = Path(os.getenv("PUBLIC_USAGE_DB", PROJECT_ROOT / "data" / "public-usage.sqlite3"))
-FREE_CHAT_LIMIT = max(0, int(os.getenv("PUBLIC_FREE_CHAT_LIMIT", "8")))
+FREE_CHAT_LIMIT = max(0, int(os.getenv("PUBLIC_FREE_CHAT_LIMIT", "4")))
 IP_HOURLY_CHAT_LIMIT = max(FREE_CHAT_LIMIT, int(os.getenv("PUBLIC_IP_HOURLY_CHAT_LIMIT", "20")))
 INITIAL_TTS_ALLOWANCE = max(1, int(os.getenv("PUBLIC_INITIAL_TTS_ALLOWANCE", "8")))
 OWNER_TTS_ALLOWANCE = max(INITIAL_TTS_ALLOWANCE, int(os.getenv("OWNER_TTS_ALLOWANCE", "64")))
