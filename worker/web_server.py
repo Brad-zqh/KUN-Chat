@@ -94,6 +94,12 @@ MANUAL_PAYMENT_ENABLED = os.getenv("MANUAL_PAYMENT_ENABLED", "1").strip().lower(
 }
 
 
+def _stt_proxy_token_matches(provided: str | None) -> bool:
+    expected = os.getenv("PUBLIC_STT_PROXY_SECRET", "").strip()
+    candidate = (provided or "").strip()
+    return bool(expected and candidate and hmac.compare_digest(expected, candidate))
+
+
 def _minimax_websocket_pcm(
     api_base: str,
     api_key: str,
@@ -1592,6 +1598,8 @@ class Handler(SimpleHTTPRequestHandler):
 
         if self.path == "/transcribe":
             try:
+                if not _stt_proxy_token_matches(self.headers.get("X-KUN-STT-Token")):
+                    self._require_user_if_public()
                 content_length = int(self.headers.get("Content-Length", "0"))
                 if content_length <= 0:
                     raise ValueError("没有收到录音内容")
@@ -1607,6 +1615,8 @@ class Handler(SimpleHTTPRequestHandler):
                 )
             except ValueError as exc:
                 self._send_json(400, {"error": str(exc)})
+            except AuthRequiredError as exc:
+                self._send_json(401, {"error": str(exc), "code": "auth_required"})
             except Exception as exc:
                 self._send_json(503, {"error": f"语音识别暂时不可用：{exc}"})
             return

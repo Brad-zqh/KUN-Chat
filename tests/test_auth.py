@@ -17,6 +17,12 @@ class AuthTest(unittest.TestCase):
         self.patch.stop()
         self.temp_dir.cleanup()
 
+    def test_stt_proxy_secret_is_required_and_compared_exactly(self):
+        with patch.dict("os.environ", {"PUBLIC_STT_PROXY_SECRET": "server-secret"}, clear=False):
+            self.assertTrue(web_server._stt_proxy_token_matches("server-secret"))
+            self.assertFalse(web_server._stt_proxy_token_matches("wrong-secret"))
+            self.assertFalse(web_server._stt_proxy_token_matches(None))
+
     def test_password_and_session_round_trip(self):
         username, password = web_server._validate_credentials(
             "test_user", "strong-pass-123"
