@@ -4,9 +4,9 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <title>KUN Chat</title>
-  <link rel="preload" as="image" href="/assets/kun-avatar-ai-v1.png?v=20260723-avatar2" />
-  <link rel="preload" as="image" href="/assets/fengge-avatar.jpg?v=20260724-avatar3" />
-  <link rel="preload" as="image" href="/assets/laocan-avatar.jpg?v=20260724-avatar3" />
+  <link rel="preload" as="image" href="/assets/kun-avatar-thumb.webp?v=20260806-fast1" />
+  <link rel="preload" as="image" href="/assets/fengge-avatar-thumb.webp?v=20260806-fast1" />
+  <link rel="preload" as="image" href="/assets/laocan-avatar-thumb.webp?v=20260806-fast1" />
   <style>
     :root {
       color-scheme: light;
@@ -247,7 +247,7 @@
     <header>
       <button class="icon-btn" id="menuBtn" aria-label="打开设置">☰</button>
       <div class="identity">
-        <div class="avatar kun-avatar" id="topAvatar"><img src="/assets/kun-avatar-ai-v1.png?v=20260723-avatar2" onerror="this.onerror=null;this.src='/assets/kun-avatar-photo-v1.png?v=20260723-avatar2'" alt="KUN Chat 动漫头像" /></div>
+        <div class="avatar kun-avatar" id="topAvatar"><img src="/assets/kun-avatar-thumb.webp?v=20260806-fast1" onerror="this.onerror=null;this.src='/assets/kun-avatar-photo-v1.png?v=20260806-fast1'" alt="KUN Chat 动漫头像" /></div>
         <div class="title-wrap"><div class="title" id="title">KUN Chat</div><div class="subtitle" id="subtitle">公开表达风格 · 本地语料 RAG</div></div>
       </div>
       <div class="status"><span class="dot" id="statusDot"></span><span class="service-status" id="statusText">正在检查</span><button class="music-trigger" id="musicBtn" type="button">♫ 原创清唱</button><span class="quota-badge" id="quotaText">免费 4 次</span></div>
@@ -256,31 +256,31 @@
     <nav class="persona-rail" aria-label="选择数字人角色">
       <div class="persona-rail-inner" id="personaRail">
         <button class="persona-card" type="button" data-persona-switch="kunkun" aria-label="切换到坤坤">
-          <span class="persona-card-avatar kun-avatar"><img src="/assets/kun-avatar-ai-v1.png?v=20260723-avatar2" alt="坤坤" /></span>
+          <span class="persona-card-avatar kun-avatar"><img src="/assets/kun-avatar-thumb.webp?v=20260806-fast1" alt="坤坤" /></span>
           <span class="persona-card-copy"><strong>坤坤</strong><small>音乐与舞台</small></span>
         </button>
         <button class="persona-card" type="button" data-persona-switch="fengge" aria-label="切换到峰哥">
-          <span class="persona-card-avatar"><img src="/assets/fengge-avatar.jpg?v=20260724-avatar3" alt="峰哥" /></span>
+          <span class="persona-card-avatar"><img src="/assets/fengge-avatar-thumb.webp?v=20260806-fast1" alt="峰哥" /></span>
           <span class="persona-card-copy"><strong>峰哥</strong><small>直接、具体观点</small></span>
         </button>
         <button class="persona-card" type="button" data-persona-switch="laocan" aria-label="切换到老残">
-          <span class="persona-card-avatar"><img src="/assets/laocan-avatar.jpg?v=20260724-avatar3" alt="老残" /></span>
+          <span class="persona-card-avatar"><img src="/assets/laocan-avatar-thumb.webp?v=20260806-fast1" alt="老残" /></span>
           <span class="persona-card-copy"><strong>老残</strong><small>阅读、写作与生活</small></span>
         </button>
         <button class="persona-card" type="button" data-persona-switch="qiuhao" aria-label="切换到皓哥">
-          <span class="persona-card-avatar"><img src="/assets/qiuhao-avatar.png?v=20260726-photo1" alt="皓哥" /></span>
+          <span class="persona-card-avatar"><img src="/assets/qiuhao-avatar-thumb.webp?v=20260806-fast1" alt="皓哥" /></span>
           <span><strong>皓哥</strong><small>本人授权数字人</small></span>
         </button>
         <button class="persona-card" type="button" data-persona-switch="qingliangshanren" aria-label="切换到清凉山人">
-          <span class="persona-card-avatar"><img src="/assets/qingliangshanren-avatar.png?v=20260727-photo2" alt="清凉山人" /></span>
+          <span class="persona-card-avatar"><img src="/assets/qingliangshanren-avatar-thumb.webp?v=20260806-fast1" alt="清凉山人" /></span>
           <span><strong>清凉山人</strong><small>家人授权数字人</small></span>
         </button>
         <button class="persona-card" type="button" data-persona-switch="nainai" aria-label="切换到奶奶">
-          <span class="persona-card-avatar"><img src="/assets/nainai-avatar.png?v=20260727-photo1" alt="奶奶" /></span>
+          <span class="persona-card-avatar"><img src="/assets/nainai-avatar-thumb.webp?v=20260806-fast1" alt="奶奶" /></span>
           <span><strong>奶奶</strong><small>家人授权数字人</small></span>
         </button>
         <button class="persona-card" type="button" data-persona-switch="zouyuxin" aria-label="切换到雨芯">
-          <span class="persona-card-avatar"><img src="/assets/zouyuxin-avatar.png?v=20260806-photo1" alt="邹雨芯" /></span>
+          <span class="persona-card-avatar"><img src="/assets/zouyuxin-avatar-thumb.webp?v=20260806-fast1" alt="邹雨芯" /></span>
           <span><strong>雨芯</strong><small>授权独立 RAG</small></span>
         </button>
       </div>
@@ -417,15 +417,15 @@
     };
     const names = { kunkun: '坤坤', fengge: '峰哥', laocan: '老残', qiuhao: '皓哥', qingliangshanren: '清凉山人', nainai: '奶奶', zouyuxin: '雨芯' };
     const realNames = { kunkun: '蔡徐坤', fengge: '峰哥', laocan: '老残', qiuhao: '皓哥', qingliangshanren: '清凉山人', nainai: '奶奶', zouyuxin: '邹雨芯' };
-    const KUN_AVATAR_SRC = '/assets/kun-avatar-ai-v1.png?v=20260723-avatar2';
+    const KUN_AVATAR_SRC = '/assets/kun-avatar-thumb.webp?v=20260806-fast1';
     const AVATARS = {
       kunkun: KUN_AVATAR_SRC,
-      fengge: '/assets/fengge-avatar.jpg?v=20260724-avatar3',
-      laocan: '/assets/laocan-avatar.jpg?v=20260724-avatar3',
-      qiuhao: '/assets/qiuhao-avatar.png?v=20260726-photo1',
-      qingliangshanren: '/assets/qingliangshanren-avatar.png?v=20260727-photo2',
-      nainai: '/assets/nainai-avatar.png?v=20260727-photo1',
-      zouyuxin: '/assets/zouyuxin-avatar.png?v=20260806-photo1'
+      fengge: '/assets/fengge-avatar-thumb.webp?v=20260806-fast1',
+      laocan: '/assets/laocan-avatar-thumb.webp?v=20260806-fast1',
+      qiuhao: '/assets/qiuhao-avatar-thumb.webp?v=20260806-fast1',
+      qingliangshanren: '/assets/qingliangshanren-avatar-thumb.webp?v=20260806-fast1',
+      nainai: '/assets/nainai-avatar-thumb.webp?v=20260806-fast1',
+      zouyuxin: '/assets/zouyuxin-avatar-thumb.webp?v=20260806-fast1'
     };
     const AVATAR_MARKS = {};
     const welcomes = {
