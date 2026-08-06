@@ -401,7 +401,9 @@
   <script>
     const $ = (id) => document.getElementById(id);
     const ACTIVE_PERSONAS = new Set(['kunkun','fengge','laocan','qiuhao','qingliangshanren','nainai','zouyuxin']);
-    const storedPersona = localStorage.getItem('persona') || 'kunkun';
+    const requestedPersona = new URLSearchParams(location.search).get('persona');
+    const storedPersona = requestedPersona || localStorage.getItem('persona') || 'kunkun';
+    const SECURE_VOICE_URL = 'https://erik-developmental-hour-afterwards.trycloudflare.com/chat.html?v=20260806-ten';
     const state = {
       persona: ACTIVE_PERSONAS.has(storedPersona) ? storedPersona : 'kunkun',
       // MiniMax is reserved for persona TTS.  Old browser sessions may still
@@ -760,9 +762,10 @@
     function resize(){const el=$('input');el.style.height='auto';el.style.height=Math.min(el.scrollHeight,132)+'px';}
 
     let mediaRecorder=null,recordingStream=null,recordingChunks=[],recordingTimer=null,transcribing=false,forceCaptureFallback=false,pressingMic=false,recordingStartedAt=0;
+    function idleMicLabel(){return window.isSecureContext?'🎙 按住说话':'🎙 打开语音对话';}
     function resetMic(){
       clearTimeout(recordingTimer);recordingTimer=null;
-      $('micBtn').classList.remove('listening');$('micBtn').textContent='🎙 按住说话';
+      $('micBtn').classList.remove('listening');$('micBtn').textContent=idleMicLabel();
       $('input').placeholder='有问题，尽管问';
       if(recordingStream){recordingStream.getTracks().forEach(track=>track.stop());recordingStream=null;}
       mediaRecorder=null;pressingMic=false;recordingStartedAt=0;
@@ -826,12 +829,13 @@
       const remaining=Math.max(0,280-(Date.now()-recordingStartedAt));
       setTimeout(()=>{if(mediaRecorder?.state==='recording')mediaRecorder.stop();},remaining);
     }
-    $('micBtn').title=window.isSecureContext?'按住说话，松开后自动发送':'当前 HTTP 地址只能调用系统录音；按住说话请使用 HTTPS 语音版';
-    $('micModeLabel').textContent=window.isSecureContext?'🎙 按住说话，松开发送':'⚠ 按住说话需要 HTTPS；此处点击可调用系统录音';
+    $('micBtn').textContent=idleMicLabel();
+    $('micBtn').title=window.isSecureContext?'按住说话，松开后自动发送':'打开支持按住说话的 HTTPS 语音版';
+    $('micModeLabel').textContent=window.isSecureContext?'🎙 按住说话，松开发送':'🎙 点击左侧按钮进入按住说话模式';
     $('micBtn').onpointerdown=e=>{
       e.preventDefault();
       if(transcribing||pressingMic)return;
-      if(!window.isSecureContext){openSystemRecorder();return;}
+      if(!window.isSecureContext){location.href=`${SECURE_VOICE_URL}&persona=${encodeURIComponent(state.persona)}`;return;}
       pressingMic=true;
       try{$('micBtn').setPointerCapture(e.pointerId);}catch{}
       startRecording();
