@@ -132,7 +132,7 @@
     textarea::placeholder { color: #999; }
     .send { width: 42px; height: 42px; border: 0; border-radius: 50%; color: white; background: linear-gradient(145deg,#2874ee,#0d47bd); box-shadow: 0 6px 15px rgba(18,75,184,.23); cursor: pointer; font-size: 22px; }
     .send:disabled { background: #b8c6df; box-shadow: none; cursor: default; }
-    .mic { width: auto; min-width: 72px; height: 42px; padding: 0 12px; border: 0; border-radius: 16px; color: var(--accent); background: #edf4ff; cursor: pointer; font-size: 13px; font-weight: 750; white-space: nowrap; }
+    .mic { width: auto; min-width: 92px; height: 42px; padding: 0 12px; border: 0; border-radius: 16px; color: var(--accent); background: #edf4ff; cursor: pointer; font-size: 13px; font-weight: 750; white-space: nowrap; touch-action: none; user-select: none; -webkit-user-select: none; }
     .mic.listening { color: white; background: #d8433c; animation: pulse 1.2s infinite; }
     .composer-meta { width: min(920px,100%); margin: 7px auto 0; display: flex; justify-content: space-between; gap: 14px; color: #7e8cab; font-size: 11px; padding: 0 8px; }
     .composer-meta label { display: flex; align-items: center; gap: 5px; cursor: pointer; }
@@ -293,14 +293,14 @@
 
     <div class="composer-shell">
       <div class="composer">
-        <button class="mic" id="micBtn" type="button" aria-label="录音输入">🎙 录音</button>
+        <button class="mic" id="micBtn" type="button" aria-label="按住说话">🎙 按住说话</button>
         <input id="audioCapture" type="file" accept="audio/*" capture="microphone" hidden />
         <textarea id="input" rows="1" placeholder="有问题，尽管问"></textarea>
         <button class="send" id="sendBtn" aria-label="发送">↑</button>
       </div>
       <div class="composer-meta">
         <label><input type="checkbox" id="autoSpeak" checked /> 自动朗读 AI 回复</label>
-        <span id="micModeLabel">🎙 手机录音可用</span>
+        <span id="micModeLabel">🎙 按住说话，松开发送</span>
         <span id="modelLabel">MiniMax · 未配置</span>
       </div>
     </div>
@@ -759,13 +759,13 @@
     }
     function resize(){const el=$('input');el.style.height='auto';el.style.height=Math.min(el.scrollHeight,132)+'px';}
 
-    let mediaRecorder=null,recordingStream=null,recordingChunks=[],recordingTimer=null,transcribing=false,forceCaptureFallback=false;
+    let mediaRecorder=null,recordingStream=null,recordingChunks=[],recordingTimer=null,transcribing=false,forceCaptureFallback=false,pressingMic=false,recordingStartedAt=0;
     function resetMic(){
       clearTimeout(recordingTimer);recordingTimer=null;
-      $('micBtn').classList.remove('listening');$('micBtn').textContent='🎙 录音';
+      $('micBtn').classList.remove('listening');$('micBtn').textContent='🎙 按住说话';
       $('input').placeholder='有问题，尽管问';
       if(recordingStream){recordingStream.getTracks().forEach(track=>track.stop());recordingStream=null;}
-      mediaRecorder=null;
+      mediaRecorder=null;pressingMic=false;recordingStartedAt=0;
     }
     function preferredAudioType(){
       if(!window.MediaRecorder)return '';
@@ -794,9 +794,9 @@
       // getUserMedia is unavailable on ordinary HTTP LAN origins. Mobile file
       // capture still opens the phone's trusted system recorder and lets the
       // same local Whisper endpoint transcribe the result.
-      if(forceCaptureFallback||!window.isSecureContext){openSystemRecorder();return;}
+      if(forceCaptureFallback||!window.isSecureContext){pressingMic=false;openSystemRecorder();return;}
       if(!navigator.mediaDevices?.getUserMedia||!window.MediaRecorder){
-        openSystemRecorder();return;
+        pressingMic=false;openSystemRecorder();return;
       }
       try{
         recordingStream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true,autoGainControl:true}});
@@ -808,8 +808,9 @@
           const blob=new Blob(recordingChunks,{type:mediaRecorder?.mimeType||mimeType||'application/octet-stream'});
           uploadRecording(blob);
         };
-        mediaRecorder.start(250);$('micBtn').classList.add('listening');$('micBtn').textContent='■ 停止';
-        $('input').placeholder='正在录音，再点一次停止…';
+        if(!pressingMic){resetMic();return;}
+        mediaRecorder.start(250);recordingStartedAt=Date.now();$('micBtn').classList.add('listening');$('micBtn').textContent='松开发送';
+        $('input').placeholder='正在听你说话，松开发送…';
         recordingTimer=setTimeout(()=>{if(mediaRecorder?.state==='recording')mediaRecorder.stop();},45000);
       }catch(e){
         resetMic();
@@ -819,12 +820,29 @@
         }else alert(`无法开启麦克风：${e.message}`);
       }
     }
-    $('micBtn').title=window.isSecureContext?'录音输入：点击开始，再点一次停止':'录音输入：调用手机系统录音或选择音频';
-    $('micModeLabel').textContent=window.isSecureContext?'🎙 点击录音，再点停止':'🎙 点击“录音”，调用手机系统录音';
-    $('micBtn').onclick=()=>{
-      if(transcribing)return;
-      if(mediaRecorder?.state==='recording')mediaRecorder.stop();else startRecording();
+    function stopPushToTalk(){
+      pressingMic=false;
+      if(mediaRecorder?.state!=='recording')return;
+      const remaining=Math.max(0,280-(Date.now()-recordingStartedAt));
+      setTimeout(()=>{if(mediaRecorder?.state==='recording')mediaRecorder.stop();},remaining);
+    }
+    $('micBtn').title=window.isSecureContext?'按住说话，松开后自动发送':'当前 HTTP 地址只能调用系统录音；按住说话请使用 HTTPS 语音版';
+    $('micModeLabel').textContent=window.isSecureContext?'🎙 按住说话，松开发送':'⚠ 按住说话需要 HTTPS；此处点击可调用系统录音';
+    $('micBtn').onpointerdown=e=>{
+      e.preventDefault();
+      if(transcribing||pressingMic)return;
+      if(!window.isSecureContext){openSystemRecorder();return;}
+      pressingMic=true;
+      try{$('micBtn').setPointerCapture(e.pointerId);}catch{}
+      startRecording();
     };
+    $('micBtn').onpointerup=e=>{e.preventDefault();stopPushToTalk();};
+    $('micBtn').onpointercancel=stopPushToTalk;
+    $('micBtn').oncontextmenu=e=>e.preventDefault();
+    $('micBtn').onkeydown=e=>{
+      if((e.key===' '||e.key==='Enter')&&!e.repeat&&!transcribing){e.preventDefault();pressingMic=true;startRecording();}
+    };
+    $('micBtn').onkeyup=e=>{if(e.key===' '||e.key==='Enter'){e.preventDefault();stopPushToTalk();}};
 
     $('sendBtn').onclick=send; $('input').oninput=resize; $('input').onkeydown=e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();send();}};
     $('menuBtn').onclick=()=> $('drawer').classList.add('open'); $('closeDrawer').onclick=()=> $('drawer').classList.remove('open');
