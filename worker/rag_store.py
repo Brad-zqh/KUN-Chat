@@ -31,6 +31,7 @@ PERSONA_DB_DEFAULTS = {
     "laocan": Path(r"D:\OneDrive\LLMs\persona-material\Laocan\production\laocan-rag.sqlite3"),
     "qiuhao": Path(r"D:\OneDrive\LLMs\persona-material\Qiuhao\production\qiuhao-rag.sqlite3"),
     "qingliangshanren": Path(r"D:\OneDrive\LLMs\persona-material\Qingliangshanren\production\qingliangshanren-rag.sqlite3"),
+    "zouyuxin": Path(r"D:\OneDrive\LLMs\persona-material\Zouyuxin\production\zouyuxin-rag.sqlite3"),
 }
 _FORBIDDEN_SOURCE_PARTS = {
     "raw_segments_unreviewed",
@@ -729,9 +730,13 @@ def _search_reviewed_persona(query: str, *, limit: int, persona: str) -> list[Ra
               AND lower(speaker_gate) NOT LIKE '%reject%'
             """
         ).fetchall()
+        scored = [
+            (row, _lexical_score(query, row["text"]))
+            for row in rows
+        ]
         ranked = sorted(
-            rows,
-            key=lambda row: (_lexical_score(query, row["text"]), row["kind"] == "facts"),
+            ((row, score) for row, score in scored if score > 0),
+            key=lambda item: item[1],
             reverse=True,
         )[: max(1, min(limit, 12))]
         return [
@@ -740,9 +745,9 @@ def _search_reviewed_persona(query: str, *, limit: int, persona: str) -> list[Ra
                 title=str(row["source_title"]),
                 url=str(row["source_url"]),
                 path=f"{persona}:{row['record_id']}",
-                score=round(_lexical_score(query, row["text"]), 6),
+                score=round(score, 6),
             )
-            for row in ranked
+            for row, score in ranked
         ]
     finally:
         conn.close()

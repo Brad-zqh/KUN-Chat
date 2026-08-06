@@ -11,6 +11,48 @@ from worker import rag_store
 
 
 class RagStoreTest(unittest.TestCase):
+    def test_zouyuxin_private_database_is_isolated_and_searchable(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            database = Path(tmp) / "zouyuxin.sqlite3"
+            conn = sqlite3.connect(database)
+            conn.executescript(
+                """
+                CREATE TABLE documents (
+                    record_id TEXT, persona_id TEXT, kind TEXT, text TEXT,
+                    source_title TEXT, source_url TEXT, publisher TEXT,
+                    published_date TEXT, speaker_gate TEXT, semantic_gate TEXT,
+                    locator_json TEXT, training_permission TEXT,
+                    audio_training_eligible INTEGER
+                );
+                CREATE TABLE style_examples (
+                    record_id TEXT, persona_id TEXT, text TEXT, source_url TEXT,
+                    style_tags_json TEXT, locator_json TEXT,
+                    training_permission TEXT
+                );
+                INSERT INTO documents VALUES (
+                    'zyx-f1','zouyuxin','fact','每个人感兴趣的东西不一样',
+                    '授权聊天','private://zouyuxin','authorized','2026',
+                    'authorized_private_chat_self_only','attributed_fact','{}',
+                    'user_authorized_private',0
+                );
+                INSERT INTO style_examples VALUES (
+                    'zyx-s1','zouyuxin','哇，听起来就很安逸。',
+                    'private://zouyuxin','["川渝口语"]','{}',
+                    'user_authorized_private'
+                );
+                """
+            )
+            conn.commit()
+            conn.close()
+            with patch.dict(os.environ, {"ZOUYUXIN_RAG_DB": str(database)}, clear=False):
+                reviewed_status = rag_store.status("zouyuxin")
+                self.assertEqual(reviewed_status["facts"], 1)
+                self.assertEqual(len(rag_store.search("兴趣", persona="zouyuxin")), 1)
+                self.assertEqual(
+                    rag_store.style_search("安逸", persona="zouyuxin")[0].source_id,
+                    "zyx-s1",
+                )
+
     def test_reviewed_persona_database_is_read_without_reindexing(self):
         with tempfile.TemporaryDirectory() as tmp:
             database = Path(tmp) / "fengge.sqlite3"
@@ -63,11 +105,10 @@ class RagStoreTest(unittest.TestCase):
                 self.assertEqual(reviewed_status["style_documents"], 1)
                 self.assertEqual(len(rag_store.search("程序员", limit=1, persona="fengge")), 1)
                 fact_hits = rag_store.search("个人口语片段", limit=1, persona="fengge")
-                self.assertEqual(len(fact_hits), 1)
-                self.assertEqual(fact_hits[0].path, "fengge:f1")
-                self.assertNotIn("个人口语片段", fact_hits[0].content)
+                self.assertEqual(fact_hits, [])
                 own_speech_fact_hits = rag_store.search("无障碍出行", persona="fengge")
                 self.assertEqual(own_speech_fact_hits[0].path, "fengge:f2")
+                self.assertEqual(rag_store.search("完全无关的量子海豹", persona="fengge"), [])
                 style_hits = rag_store.style_search("问题", limit=1, persona="fengge")
                 self.assertEqual(len(style_hits), 1)
                 self.assertEqual(style_hits[0].source_id, "s1")

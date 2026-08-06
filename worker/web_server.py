@@ -54,7 +54,7 @@ WEB_DIR = PROJECT_ROOT / "web"
 DISABLED_PERSONAS = frozenset({"linqingxia", "tulei"})
 SUPPORTED_PERSONAS = frozenset(PERSONA_REGISTRY) - DISABLED_PERSONAS
 RAG_PERSONAS = frozenset(
-    {"kunkun", "fengge", "linqingxia", "tulei", "laocan", "qiuhao", "qingliangshanren"}
+    {"kunkun", "fengge", "linqingxia", "tulei", "laocan", "qiuhao", "qingliangshanren", "zouyuxin"}
 )
 
 # 阶段 20 修复：web 是 nohup 后台拉，**不继承 shell env**，必须自己 load_dotenv
