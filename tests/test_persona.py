@@ -85,6 +85,14 @@ class PersonaTest(unittest.TestCase):
         self.assertIn("禁止读取或迁移其他人物库", prompt)
         self.assertIn("不代表本人作出现实承诺", prompt)
 
+    def test_zouyuxin_prompt_uses_authorized_voice_without_other_rag(self):
+        prompt = build_system_prompt("zouyuxin")
+        self.assertIn("确认有权使用", prompt)
+        self.assertIn("对外昵称雨芯", prompt)
+        self.assertIn("当前没有独立 production RAG", prompt)
+        self.assertIn("禁止读取或迁移其他人物库", prompt)
+        self.assertIn("不是现实中的邹雨芯本人", prompt)
+
 
 if __name__ == "__main__":
     unittest.main()

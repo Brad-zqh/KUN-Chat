@@ -741,10 +741,39 @@ def _available_providers() -> dict[str, bool]:
 
 
 def _tts_provider_for(persona: str) -> str:
-    return os.getenv(
-        f"TTS_PROVIDER_{persona.upper()}",
-        os.getenv("TTS_PROVIDER", "voxcpm"),
-    ).strip().lower()
+    configured = os.getenv(f"TTS_PROVIDER_{persona.upper()}", "").strip().lower()
+    if configured:
+        return configured
+    if persona == "zouyuxin" and _minimax_voice_id_for(persona):
+        return "minimax"
+    return os.getenv("TTS_PROVIDER", "voxcpm").strip().lower()
+
+
+def _minimax_voice_id_for(persona: str) -> str:
+    """Return a server-side Voice ID without exposing it to the browser.
+
+    Environment variables remain authoritative.  The local 雨芯 persona also
+    accepts the private activation receipt produced by the authorized voice
+    setup tool, so a generated Voice ID does not have to be duplicated into a
+    second plaintext configuration file.
+    """
+
+    configured = os.getenv(f"MINIMAX_VOICE_ID_{persona.upper()}", "").strip()
+    if configured:
+        return configured
+    metadata_paths = {
+        "zouyuxin": PROJECT_ROOT / "data" / "minimax-zouyuxin-voice-v1.json",
+    }
+    metadata_path = metadata_paths.get(persona)
+    if metadata_path is None or not metadata_path.is_file():
+        return ""
+    try:
+        metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return ""
+    if metadata.get("activated_by_tts") is not True:
+        return ""
+    return str(metadata.get("voice_id") or "").strip()
 
 
 def _minimax_tts_speed_for(persona: str) -> float:
@@ -904,7 +933,7 @@ def _synthesize_wav(persona: str, text: str) -> bytes:
     if tts_provider == "minimax":
         cache_variant = "|".join(
             [
-                os.getenv(f"MINIMAX_VOICE_ID_{persona.upper()}", "").strip(),
+                _minimax_voice_id_for(persona),
                 str(_minimax_tts_speed_for(persona)),
                 str(_minimax_tts_pitch_for(persona)),
                 _minimax_tts_model_for(persona),
@@ -917,7 +946,7 @@ def _synthesize_wav(persona: str, text: str) -> bytes:
 
     if tts_provider == "minimax":
         api_key = os.getenv("MINIMAX_API_KEY", "").strip()
-        voice_id = os.getenv(f"MINIMAX_VOICE_ID_{persona.upper()}", "").strip()
+        voice_id = _minimax_voice_id_for(persona)
         if not api_key:
             raise RuntimeError("MINIMAX_API_KEY 尚未配置")
         if not voice_id:
@@ -1691,7 +1720,7 @@ class Handler(SimpleHTTPRequestHandler):
                     bool(
                         os.getenv("MINIMAX_API_KEY", "").strip()
                         and (
-                            os.getenv(f"MINIMAX_VOICE_ID_{persona.upper()}", "").strip()
+                            _minimax_voice_id_for(persona)
                         )
                     )
                     if tts_providers[persona] == "minimax"

@@ -103,6 +103,19 @@ class AuthTest(unittest.TestCase):
     def test_disabled_persona_is_not_published(self):
         self.assertNotIn("tulei", web_server.SUPPORTED_PERSONAS)
         self.assertNotIn("linqingxia", web_server.SUPPORTED_PERSONAS)
+        self.assertIn("qingliangshanren", web_server.SUPPORTED_PERSONAS)
+        self.assertIn("zouyuxin", web_server.SUPPORTED_PERSONAS)
+
+    def test_zouyuxin_authorized_voice_defaults_to_minimax(self):
+        with patch.dict(
+            web_server.os.environ,
+            {
+                "MINIMAX_VOICE_ID_ZOUYUXIN": "authorized-test-voice",
+                "TTS_PROVIDER": "voxcpm",
+            },
+            clear=False,
+        ):
+            self.assertEqual(web_server._tts_provider_for("zouyuxin"), "minimax")
 
 
 if __name__ == "__main__":

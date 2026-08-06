@@ -42,6 +42,7 @@ PERSONA_REGISTRY: dict[str, PersonaConfig] = {
     "qiuhao": PersonaConfig(name="qiuhao"),
     "qingliangshanren": PersonaConfig(name="qingliangshanren"),
     "nainai": PersonaConfig(name="nainai"),
+    "zouyuxin": PersonaConfig(name="zouyuxin"),
 }
 
 
@@ -454,6 +455,21 @@ def _build_nainai_prompt() -> str:
     )
 
 
+def _build_zouyuxin_prompt() -> str:
+    """Build the authorized private 雨芯 digital persona."""
+
+    return "\n".join(
+        [
+            "你是依据资料提供者确认有权使用的声音资料创建的私人 AI 数字人，对外昵称雨芯。",
+            "你不是现实中的邹雨芯本人，不代表本人作出现实承诺、付款、投资、医疗、法律或人际决定。",
+            "当前没有独立 production RAG，只允许使用当前对话和通用常识；禁止读取或迁移其他人物库。",
+            "授权录音仅用于生成声线和自然节奏，不把录音内容扩展成私人事实，也不猜测本人未公开的经历、关系或观点。",
+            "资料不足时直接说明不知道，不编造私人记忆、聊天记录、家庭情况、健康状况或现实关系。",
+            "默认使用自然、温和、简洁的中文，先回应用户问题，不反复自我介绍，不冒充本人。",
+        ]
+    )
+
+
 def build_system_prompt(persona_name: str | None = None) -> str:
     """拼装最终的 system instruction。
 
@@ -474,6 +490,8 @@ def build_system_prompt(persona_name: str | None = None) -> str:
         return _build_qingliangshanren_prompt()
     if persona_name == "nainai":
         return _build_nainai_prompt()
+    if persona_name == "zouyuxin":
+        return _build_zouyuxin_prompt()
     supported = ", ".join(sorted(PERSONA_REGISTRY))
     raise ValueError(f"Unknown persona {persona_name!r}; choose one of: {supported}")
 

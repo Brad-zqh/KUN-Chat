@@ -46,6 +46,7 @@
       box-shadow: 0 0 0 1px rgba(36,104,232,.2), 0 8px 20px rgba(27,84,190,.2);
     }
     .avatar img { display: block; width: 100%; height: 100%; object-fit: cover; object-position: 50% 30%; }
+    .avatar-mark { display: grid; width: 100%; height: 100%; place-items: center; color: #fff; font-weight: 800; background: linear-gradient(145deg, #7869df, #c76da2); }
     .avatar.kun-avatar { background: #174fb7; }
     /* The KUN artwork is a wide scene. Zoom it explicitly so WebView/WeChat
        circular clipping keeps the face in frame instead of showing blue sky. */
@@ -83,6 +84,7 @@
       background: #174fb7; box-shadow: 0 0 0 1px #bed3f7;
     }
     .persona-card-avatar img { display: block; width: 100%; height: 100%; object-fit: cover; object-position: 50% 30%; }
+    .persona-card-avatar .avatar-mark { font-size: 21px; }
     .persona-card-avatar.kun-avatar img { width: 172%; height: 172%; max-width: none; object-position: 50% 28%; }
     .persona-card-copy { min-width: 0; }
     .persona-card-copy strong { display: block; font-size: 15px; }
@@ -275,6 +277,10 @@
           <span class="persona-card-avatar"><img src="/assets/nainai-avatar.png?v=20260727-photo1" alt="奶奶" /></span>
           <span><strong>奶奶</strong><small>家人授权数字人</small></span>
         </button>
+        <button class="persona-card" type="button" data-persona-switch="zouyuxin" aria-label="切换到雨芯">
+          <span class="persona-card-avatar"><span class="avatar-mark" aria-hidden="true">雨</span></span>
+          <span><strong>雨芯</strong><small>授权声线数字人</small></span>
+        </button>
       </div>
     </nav>
 
@@ -325,7 +331,7 @@
         </div>
         <div class="auth-error" id="authError"></div>
       </section></div>
-      <div class="field"><label for="persona">角色</label><select id="persona"><option value="kunkun">坤坤</option><option value="fengge">峰哥</option><option value="laocan">老残</option><option value="qiuhao">皓哥</option><option value="qingliangshanren">清凉山人</option><option value="nainai">奶奶</option></select></div>
+      <div class="field"><label for="persona">角色</label><select id="persona"><option value="kunkun">坤坤</option><option value="fengge">峰哥</option><option value="laocan">老残</option><option value="qiuhao">皓哥</option><option value="qingliangshanren">清凉山人</option><option value="nainai">奶奶</option><option value="zouyuxin">雨芯</option></select></div>
       <div class="field"><label for="provider">文字模型</label><select id="provider"><option value="deepseek">DeepSeek Chat</option></select></div>
       <p class="key-help" id="keyHelp">文字模型尚未配置 API Key。请在项目的 .env.local 中填写所选模型的 Key，然后重启网页服务。</p>
       <button class="action primary" id="applySettings">应用设置</button>
@@ -391,7 +397,7 @@
 
   <script>
     const $ = (id) => document.getElementById(id);
-    const ACTIVE_PERSONAS = new Set(['kunkun','fengge','laocan','qiuhao','qingliangshanren','nainai']);
+    const ACTIVE_PERSONAS = new Set(['kunkun','fengge','laocan','qiuhao','qingliangshanren','nainai','zouyuxin']);
     const storedPersona = localStorage.getItem('persona') || 'kunkun';
     const state = {
       persona: ACTIVE_PERSONAS.has(storedPersona) ? storedPersona : 'kunkun',
@@ -404,8 +410,8 @@
       auth: { authenticated:false, auth_required:false, user:null },
       busy: false, audio: null, audioOwner: null
     };
-    const names = { kunkun: '坤坤', fengge: '峰哥', laocan: '老残', qiuhao: '皓哥', qingliangshanren: '清凉山人', nainai: '奶奶' };
-    const realNames = { kunkun: '蔡徐坤', fengge: '峰哥', laocan: '老残', qiuhao: '皓哥', qingliangshanren: '清凉山人', nainai: '奶奶' };
+    const names = { kunkun: '坤坤', fengge: '峰哥', laocan: '老残', qiuhao: '皓哥', qingliangshanren: '清凉山人', nainai: '奶奶', zouyuxin: '雨芯' };
+    const realNames = { kunkun: '蔡徐坤', fengge: '峰哥', laocan: '老残', qiuhao: '皓哥', qingliangshanren: '清凉山人', nainai: '奶奶', zouyuxin: '邹雨芯' };
     const KUN_AVATAR_SRC = '/assets/kun-avatar-ai-v1.png?v=20260723-avatar2';
     const AVATARS = {
       kunkun: KUN_AVATAR_SRC,
@@ -415,13 +421,15 @@
       qingliangshanren: '/assets/qingliangshanren-avatar.png?v=20260727-photo2',
       nainai: '/assets/nainai-avatar.png?v=20260727-photo1'
     };
+    const AVATAR_MARKS = { zouyuxin: '雨' };
     const welcomes = {
       kunkun: '你好，我是坤坤。想聊音乐、舞台、创作，或者最近的状态，都可以。',
       fengge: '有什么问题你就问。先说明一下，这是根据公开表达资料设计的 AI 角色，不是峰哥本人。',
       laocan: '你好，我是老残。今天有什么想和我聊聊的吗？这里是根据公开表达资料设计的 AI 角色，不是老残本人。',
       qiuhao: '你好，我是皓哥的私人 AI 数字人。这里使用本人授权资料，但不能代替本人作出现实承诺。',
       qingliangshanren: '你好，我是清凉山人的家庭授权 AI 数字人。可以聊阅读、生活和人生感悟，但不能代替本人作出现实承诺。',
-      nainai: '你好，我是奶奶的家庭授权 AI 数字人。可以聊家常和生活，但不能代替本人作出现实承诺。'
+      nainai: '你好，我是奶奶的家庭授权 AI 数字人。可以聊家常和生活，但不能代替本人作出现实承诺。',
+      zouyuxin: '你好，我是雨芯的授权声线 AI 数字人。这里不是真人本人，也不能代替本人作出现实承诺。'
     };
     let selectedPaymentPlan='starter', selectedPaymentProvider='alipay';
 
@@ -554,7 +562,11 @@
     }
     function avatarMarkup() {
       const avatarClass=state.persona==='kunkun'?' kun-avatar':'';
-      return `<div class="avatar${avatarClass}"><img src="${AVATARS[state.persona]||KUN_AVATAR_SRC}" alt="${names[state.persona]||'AI'}数字人动漫头像" /></div>`;
+      return `<div class="avatar${avatarClass}">${avatarInner(state.persona)}</div>`;
+    }
+    function avatarInner(persona) {
+      const src=AVATARS[persona];
+      return src ? `<img src="${src}" alt="${names[persona]||'AI'}数字人头像" />` : `<span class="avatar-mark" aria-label="${names[persona]||'AI'}数字人头像">${AVATAR_MARKS[persona]||'AI'}</span>`;
     }
 
     function sourceTools(sources=[]) {
@@ -584,7 +596,7 @@
     function render() {
       $('messages').innerHTML=''; $('title').textContent=names[state.persona];
       $('topAvatar').classList.toggle('kun-avatar',state.persona==='kunkun');
-      $('topAvatar').innerHTML = `<img src="${AVATARS[state.persona]||KUN_AVATAR_SRC}" alt="${names[state.persona]||'AI'}数字人动漫头像" />`;
+      $('topAvatar').innerHTML = avatarInner(state.persona);
       $('topAvatar').style.background = '';
       $('personaNotice').textContent=`AI 同人角色 · 非${realNames[state.persona]||'真人'}本人或相关团队`;
       const items=history(); if(!items.length) addMessage('assistant',welcomes[state.persona]); else items.forEach(x=>addMessage(x.role,x.content,false,x.sources||[]));
