@@ -132,7 +132,7 @@
     textarea::placeholder { color: #999; }
     .send { width: 42px; height: 42px; border: 0; border-radius: 50%; color: white; background: linear-gradient(145deg,#2874ee,#0d47bd); box-shadow: 0 6px 15px rgba(18,75,184,.23); cursor: pointer; font-size: 22px; }
     .send:disabled { background: #b8c6df; box-shadow: none; cursor: default; }
-    .mic { width: 42px; height: 42px; border: 0; border-radius: 50%; color: var(--accent); background: #edf4ff; cursor: pointer; font-size: 19px; }
+    .mic { width: auto; min-width: 72px; height: 42px; padding: 0 12px; border: 0; border-radius: 16px; color: var(--accent); background: #edf4ff; cursor: pointer; font-size: 13px; font-weight: 750; white-space: nowrap; }
     .mic.listening { color: white; background: #d8433c; animation: pulse 1.2s infinite; }
     .composer-meta { width: min(920px,100%); margin: 7px auto 0; display: flex; justify-content: space-between; gap: 14px; color: #7e8cab; font-size: 11px; padding: 0 8px; }
     .composer-meta label { display: flex; align-items: center; gap: 5px; cursor: pointer; }
@@ -237,6 +237,8 @@
       .persona-card { flex-basis: 126px; padding: 7px 9px; border-radius: 16px; }
       .persona-card-avatar { width: 43px; height: 43px; flex-basis: 43px; }
       .persona-card-copy strong { font-size: 14px; }
+      .composer-meta { flex-wrap: wrap; gap: 4px 10px; }
+      #micModeLabel { order: 3; flex-basis: 100%; }
     }
   </style>
 </head>
@@ -291,13 +293,14 @@
 
     <div class="composer-shell">
       <div class="composer">
-        <button class="mic" id="micBtn" aria-label="语音输入">●</button>
+        <button class="mic" id="micBtn" type="button" aria-label="录音输入">🎙 录音</button>
         <input id="audioCapture" type="file" accept="audio/*" capture="microphone" hidden />
         <textarea id="input" rows="1" placeholder="有问题，尽管问"></textarea>
         <button class="send" id="sendBtn" aria-label="发送">↑</button>
       </div>
       <div class="composer-meta">
         <label><input type="checkbox" id="autoSpeak" checked /> 自动朗读 AI 回复</label>
+        <span id="micModeLabel">🎙 手机录音可用</span>
         <span id="modelLabel">MiniMax · 未配置</span>
       </div>
     </div>
@@ -759,7 +762,7 @@
     let mediaRecorder=null,recordingStream=null,recordingChunks=[],recordingTimer=null,transcribing=false,forceCaptureFallback=false;
     function resetMic(){
       clearTimeout(recordingTimer);recordingTimer=null;
-      $('micBtn').classList.remove('listening');$('micBtn').textContent='●';
+      $('micBtn').classList.remove('listening');$('micBtn').textContent='🎙 录音';
       $('input').placeholder='有问题，尽管问';
       if(recordingStream){recordingStream.getTracks().forEach(track=>track.stop());recordingStream=null;}
       mediaRecorder=null;
@@ -805,7 +808,7 @@
           const blob=new Blob(recordingChunks,{type:mediaRecorder?.mimeType||mimeType||'application/octet-stream'});
           uploadRecording(blob);
         };
-        mediaRecorder.start(250);$('micBtn').classList.add('listening');$('micBtn').textContent='■';
+        mediaRecorder.start(250);$('micBtn').classList.add('listening');$('micBtn').textContent='■ 停止';
         $('input').placeholder='正在录音，再点一次停止…';
         recordingTimer=setTimeout(()=>{if(mediaRecorder?.state==='recording')mediaRecorder.stop();},45000);
       }catch(e){
@@ -816,7 +819,8 @@
         }else alert(`无法开启麦克风：${e.message}`);
       }
     }
-    $('micBtn').title=window.isSecureContext?'语音输入：点击开始，再点一次停止':'语音输入：调用手机系统录音';
+    $('micBtn').title=window.isSecureContext?'录音输入：点击开始，再点一次停止':'录音输入：调用手机系统录音或选择音频';
+    $('micModeLabel').textContent=window.isSecureContext?'🎙 点击录音，再点停止':'🎙 点击“录音”，调用手机系统录音';
     $('micBtn').onclick=()=>{
       if(transcribing)return;
       if(mediaRecorder?.state==='recording')mediaRecorder.stop();else startRecording();
