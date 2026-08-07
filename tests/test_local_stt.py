@@ -29,6 +29,22 @@ class LocalSttTest(unittest.TestCase):
             (snapshot / "tokenizer.json").touch()
             self.assertTrue(local_stt._valid_snapshot(snapshot))
 
+    def test_persona_context_corrects_known_name_homophones(self):
+        self.assertEqual(
+            local_stt._apply_context_corrections("周玉琴你是谁", "zouyuxin"),
+            "邹雨芯你是谁",
+        )
+        self.assertEqual(
+            local_stt._apply_context_corrections("清凉善人你好", "qingliangshanren"),
+            "清凉山人你好",
+        )
+
+    def test_persona_context_does_not_change_other_roles(self):
+        self.assertEqual(
+            local_stt._apply_context_corrections("周玉琴你是谁", "kunkun"),
+            "周玉琴你是谁",
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

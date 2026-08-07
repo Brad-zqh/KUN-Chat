@@ -1609,6 +1609,7 @@ class Handler(SimpleHTTPRequestHandler):
                 text = local_transcribe(
                     audio,
                     self.headers.get("Content-Type", "application/octet-stream"),
+                    self.headers.get("X-KUN-Persona", ""),
                 )
                 self._send_json(
                     200, {"text": text, "provider": "local-whisper"}

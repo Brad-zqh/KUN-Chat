@@ -813,7 +813,7 @@
     async function uploadRecording(blob){
       transcribing=true;$('micBtn').disabled=true;$('input').placeholder='正在识别语音…';
       try{
-        const r=await fetch('/transcribe',{method:'POST',headers:{'Content-Type':blob.type||'application/octet-stream'},body:blob});
+        const r=await fetch('/transcribe',{method:'POST',headers:{'Content-Type':blob.type||'application/octet-stream','X-KUN-Persona':state.persona},body:blob});
         const data=await r.json();
         if(!r.ok)throw new Error(data.error||'语音识别失败');
         $('input').value=data.text||'';resize();
