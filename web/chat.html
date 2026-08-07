@@ -774,6 +774,42 @@
       if(!window.MediaRecorder)return '';
       return ['audio/webm;codecs=opus','audio/mp4','audio/webm'].find(type=>MediaRecorder.isTypeSupported(type))||'';
     }
+    async function audioInputs(){
+      if(!navigator.mediaDevices?.enumerateDevices)return [];
+      try{return (await navigator.mediaDevices.enumerateDevices()).filter(device=>device.kind==='audioinput');}
+      catch{return [];}
+    }
+    async function requestMicrophoneStream(){
+      const audio={echoCancellation:true,noiseSuppression:true,autoGainControl:true};
+      try{return await navigator.mediaDevices.getUserMedia({audio});}
+      catch(firstError){
+        if(!['NotFoundError','OverconstrainedError','AbortError'].includes(firstError?.name))throw firstError;
+        const inputs=await audioInputs();
+        let lastError=firstError;
+        for(const device of inputs){
+          if(!device.deviceId||device.deviceId==='default'||device.deviceId==='communications')continue;
+          try{return await navigator.mediaDevices.getUserMedia({audio:{...audio,deviceId:{exact:device.deviceId}}});}
+          catch(error){lastError=error;}
+        }
+        try{return await navigator.mediaDevices.getUserMedia({audio:true});}
+        catch(error){throw error||lastError;}
+      }
+    }
+    async function microphoneErrorMessage(error){
+      if(error?.name==='NotAllowedError'||error?.name==='SecurityError'){
+        return '麦克风权限未开启。请点击地址栏左侧的网站权限图标，把“麦克风”改为允许，然后刷新页面。';
+      }
+      if(error?.name==='NotFoundError'||error?.name==='OverconstrainedError'){
+        const inputs=await audioInputs();
+        return inputs.length
+          ? '检测到了麦克风，但浏览器无法打开它。请在浏览器网站权限中重新选择麦克风，或关闭正在独占麦克风的会议、录音软件后重试。'
+          : '没有检测到麦克风。请在 Windows“设置 → 系统 → 声音 → 输入”中启用或连接麦克风，再刷新页面。';
+      }
+      if(error?.name==='NotReadableError'||error?.name==='AbortError'){
+        return '麦克风正被其他程序占用。请先关闭会议、录音或语音软件，再按住说话。';
+      }
+      return `无法开启麦克风：${error?.message||'未知错误'}`;
+    }
     async function uploadRecording(blob){
       transcribing=true;$('micBtn').disabled=true;$('input').placeholder='正在识别语音…';
       try{
@@ -802,7 +838,7 @@
         pressingMic=false;openSystemRecorder();return;
       }
       try{
-        recordingStream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true,autoGainControl:true}});
+        recordingStream=await requestMicrophoneStream();
         recordingChunks=[];const mimeType=preferredAudioType();
         mediaRecorder=new MediaRecorder(recordingStream,mimeType?{mimeType}:undefined);
         mediaRecorder.ondataavailable=e=>{if(e.data&&e.data.size)recordingChunks.push(e.data);};
@@ -817,10 +853,9 @@
         recordingTimer=setTimeout(()=>{if(mediaRecorder?.state==='recording')mediaRecorder.stop();},45000);
       }catch(e){
         resetMic();
-        if(e.name==='NotAllowedError'){
-          forceCaptureFallback=true;
-          alert('浏览器没有授予网页麦克风权限。请再点一次麦克风，改用手机系统录音。');
-        }else alert(`无法开启麦克风：${e.message}`);
+        const message=await microphoneErrorMessage(e);
+        $('micModeLabel').textContent=`⚠ ${message}`;
+        alert(message);
       }
     }
     function stopPushToTalk(){
