@@ -30,10 +30,11 @@ the local production RAG database.
 - Independent prompts, RAG stores, histories, and voice settings for multiple personas
 - DeepSeek or MiniMax text generation
 - Dual RAG: reviewed fact chunks for what to say plus short spoken examples for how to say it
+- Persona expression modeling across recurring vocabulary, sentence patterns, tone, and response structure
 - Fail-closed exclusion of unreviewed RAG candidates
 - Browser recording plus mobile system-recorder fallback
 - Local Whisper speech recognition
-- Optional MiniMax/VoxCPM TTS integrations
+- High-fidelity personalized MiniMax/VoxCPM TTS for speakers with independently verifiable authorization
 - Optional MiniMax Music 3.0 original a-cappella lab (text-to-music only)
 - Clear AI-character disclosure in the interface
 
