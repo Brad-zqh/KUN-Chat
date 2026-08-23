@@ -22,13 +22,13 @@
     <section class="hero reveal">
       <div class="hero-copy">
         <p class="eyebrow"><i></i><span data-i18n="eyebrow">RAG · 语音交互 · 多角色编排</span></p>
-        <h1 data-i18n-html="heroTitle">让 AI 角色拥有<br><span>有依据的表达</span></h1>
-        <p class="lead" data-i18n="heroLead">KUN Chat 是一个可部署的 AI 数字人平台，结合经过审核的检索增强生成、中文语音识别、文本转语音和多模型路由，构建自然且可追溯的角色对话体验。</p>
+        <h1 data-i18n-html="heroTitle">让 AI 角色保留<br><span>表达习惯与专属声音</span></h1>
+        <p class="lead" data-i18n="heroLead">大语言模型结合事实与风格双层 RAG，学习特定人物常用词、句式、语气和回答结构；在获得可验证授权后，个性化语音模型进一步高保真还原其音色、语速、停顿与表达节奏。</p>
         <div class="actions">
           <a class="cta primary" href="http://124.156.187.19/chat.html?v=20260823-bilingual" data-i18n="tryProduct">体验在线版本 <b>↗</b></a>
           <a class="cta secondary" href="https://github.com/Brad-zqh/KUN-Chat" target="_blank" rel="noreferrer" data-i18n="viewCode">查看 GitHub 代码</a>
         </div>
-        <div class="metrics"><span><b>7</b><small data-i18n="metricPersonas">独立角色</small></span><span><b>RAG</b><small data-i18n="metricGrounded">可溯源回答</small></span><span><b>ASR + TTS</b><small data-i18n="metricVoice">完整语音链路</small></span></div>
+        <div class="metrics"><span><b>7</b><small data-i18n="metricPersonas">独立角色</small></span><span><b>RAG</b><small data-i18n="metricGrounded">可溯源回答</small></span><span><b data-i18n="metricVoiceValue">VOICE AI</b><small data-i18n="metricVoice">高保真授权语音</small></span></div>
       </div>
 
       <aside class="hero-panel" aria-label="System pipeline">
@@ -38,17 +38,32 @@
           <div class="flow-line"></div>
           <div class="flow-row"><span class="flow-icon">02</span><div><b data-i18n="flowRagTitle">角色化 RAG 检索</b><small data-i18n="flowRagBody">事实片段 · 口语风格 · 来源追踪</small></div><span class="chips"><i></i><i></i><i></i></span></div>
           <div class="flow-line"></div>
-          <div class="flow-row"><span class="flow-icon">03</span><div><b data-i18n="flowReplyTitle">多模型生成与语音回复</b><small data-i18n="flowReplyBody">DeepSeek / MiniMax · TTS 播放</small></div><span class="wave"><i></i><i></i><i></i><i></i><i></i></span></div>
+          <div class="flow-row"><span class="flow-icon">03</span><div><b data-i18n="flowReplyTitle">角色化生成与高保真语音回复</b><small data-i18n="flowReplyBody">LLM 回答 · 授权声音建模 · TTS 播放</small></div><span class="wave"><i></i><i></i><i></i><i></i><i></i></span></div>
         </div>
         <div class="terminal"><span>kun-chat</span><code>grounding: verified</code><code>voice: ready</code></div>
       </aside>
+    </section>
+
+    <section class="voice-focus reveal" aria-labelledby="voice-title">
+      <div class="voice-visual" aria-hidden="true">
+        <div class="voice-orbit"><span>AI</span><i></i><i></i></div>
+        <div class="voice-wave"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+        <span class="voice-status"><i></i> AUTHORIZED VOICE PROFILE</span>
+      </div>
+      <div class="voice-copy">
+        <span class="section-no">VOICE</span>
+        <h2 id="voice-title" data-i18n-html="voiceTitle">不只是回答问题，<br>而是保留人物的表达与声音</h2>
+        <p data-i18n="voiceBody">风格 RAG 从经过审核的表达样本中检索常用词、句式、语气和叙述结构，让语言模型生成更符合人物习惯的回答；授权 Voice ID 再学习可感知的声音特征，使内容与声音保持一致。</p>
+        <div class="voice-points"><span data-i18n="voiceStyle">用词句式 · Style patterns</span><span data-i18n="voiceTimbre">音色还原 · Timbre</span><span data-i18n="voiceCadence">语速节奏 · Cadence</span><span data-i18n="voicePauses">停顿表达 · Pauses</span><span data-i18n="voiceConsistency">角色一致性 · Consistency</span></div>
+        <small data-i18n="voiceBoundary">仅对拥有独立、可验证授权的说话者启用个性化语音能力。</small>
+      </div>
     </section>
 
     <section class="section reveal" id="capabilities">
       <div class="section-head"><div><span class="section-no">01</span><h2 data-i18n="capTitle">工程能力</h2></div><p data-i18n="capLead">从资料治理到公网部署，项目覆盖了完整的 AI 应用链路，而不仅是一个聊天界面。</p></div>
       <div class="capabilities">
         <article class="capability"><span class="cap-icon">R</span><h3 data-i18n="capRagTitle">双层 RAG</h3><p data-i18n="capRagBody">将事实依据与表达风格分离检索，并对未审核材料采取默认拒绝策略。</p><em>FACTS × STYLE</em></article>
-        <article class="capability"><span class="cap-icon">◉</span><h3 data-i18n="capVoiceTitle">端到端语音</h3><p data-i18n="capVoiceBody">支持按住说话、本地 Whisper 识别、专名热词以及角色化 TTS 回复。</p><em>ASR → LLM → TTS</em></article>
+        <article class="capability featured"><span class="cap-icon">◉</span><h3 data-i18n="capVoiceTitle">高保真角色语音</h3><p data-i18n="capVoiceBody">结合按住说话、Whisper 识别、角色专名提示与授权个性化 TTS，形成自然的双向语音对话。</p><em>ASR → LLM → VOICE AI</em></article>
         <article class="capability"><span class="cap-icon">↗</span><h3 data-i18n="capDeployTitle">生产化部署</h3><p data-i18n="capDeployBody">静态前端与服务端密钥隔离，配套账号、配额、监控和自动部署流程。</p><em>SECURE BY DESIGN</em></article>
         <article class="capability"><span class="cap-icon">✓</span><h3 data-i18n="capSafetyTitle">安全边界</h3><p data-i18n="capSafetyBody">明确 AI 身份、授权边界与数据来源，不将私人资料或密钥写入公开仓库。</p><em>RESPONSIBLE AI</em></article>
       </div>
