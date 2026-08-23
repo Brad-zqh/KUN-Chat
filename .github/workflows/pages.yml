@@ -35,6 +35,7 @@ jobs:
           cp web/assets/fengge-avatar.jpg _site/assets/
           cp web/assets/laocan-avatar.jpg _site/assets/
           cp web/assets/qiuhao-avatar.png _site/assets/
+          cp web/assets/*-avatar-thumb.webp _site/assets/
       - uses: actions/upload-pages-artifact@v3
         with:
           path: _site
