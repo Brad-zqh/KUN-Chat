@@ -1,6 +1,21 @@
 # KUN Chat
 
-KUN Chat is a fan-made AI character chat interface built from public-expression
+<p align="center">
+  <strong>English</strong> · <a href="README_ZH.md">简体中文</a>
+</p>
+
+<p align="center">
+  <a href="https://brad-zqh.github.io/KUN-Chat/">Live Project Page</a> ·
+  <a href="https://brad-zqh.github.io/KUN-Chat/?lang=en">English Website</a> ·
+  <a href="docs/kunkun/production-rag-baseline.md">RAG Baseline</a>
+</p>
+
+KUN Chat is a deployable AI persona platform combining reviewed retrieval-augmented
+generation, local speech recognition, text-to-speech, and multi-model routing.
+It demonstrates an end-to-end AI application stack—from corpus governance and
+persona orchestration to account controls and public deployment.
+
+The project began as a fan-made AI character interface built from public-expression
 style notes and an explicitly approved local RAG corpus. It is not affiliated
 with, endorsed by, or operated by Cai Xukun or his studio.
 
@@ -11,6 +26,8 @@ the local production RAG database.
 ## Features
 
 - Responsive blue-themed web chat for desktop and mobile
+- Bilingual Chinese/English project site with automatic locale detection
+- Independent prompts, RAG stores, histories, and voice settings for multiple personas
 - DeepSeek or MiniMax text generation
 - Dual RAG: reviewed fact chunks for what to say plus short spoken examples for how to say it
 - Fail-closed exclusion of unreviewed RAG candidates
@@ -19,6 +36,24 @@ the local production RAG database.
 - Optional MiniMax/VoxCPM TTS integrations
 - Optional MiniMax Music 3.0 original a-cappella lab (text-to-music only)
 - Clear AI-character disclosure in the interface
+
+## Architecture
+
+```text
+Browser text / push-to-talk
+          ↓
+Local Whisper ASR + persona-aware proper-name hints
+          ↓
+Reviewed fact RAG + speaking-style retrieval
+          ↓
+DeepSeek / MiniMax model routing
+          ↓
+Grounded reply + source links + authorized TTS
+```
+
+The GitHub Pages layer is static and contains no provider credentials. Chat,
+RAG, STT, authentication, quotas, and TTS run behind a separately deployed
+Python service.
 
 ## Local setup
 
