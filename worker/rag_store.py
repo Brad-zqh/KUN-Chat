@@ -23,6 +23,16 @@ from pathlib import Path
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_DB = PROJECT_ROOT / "data" / "kunkun-rag.sqlite3"
 TRAINING_PERMISSION = "unverified"
+PERSONA_DB_DEFAULTS = {
+    "kunkun": DEFAULT_DB,
+    "fengge": Path(r"D:\OneDrive\LLMs\persona-material\fengge\production\fengge-rag.sqlite3"),
+    "linqingxia": Path(r"D:\OneDrive\LLMs\persona-material\linqingxia\production\linqingxia-rag.sqlite3"),
+    "tulei": Path(r"D:\OneDrive\LLMs\persona-material\tulei\production\tulei-rag.sqlite3"),
+    "laocan": Path(r"D:\OneDrive\LLMs\persona-material\Laocan\production\laocan-rag.sqlite3"),
+    "qiuhao": Path(r"D:\OneDrive\LLMs\persona-material\Qiuhao\production\qiuhao-rag.sqlite3"),
+    "qingliangshanren": Path(r"D:\OneDrive\LLMs\persona-material\Qingliangshanren\production\qingliangshanren-rag.sqlite3"),
+    "zouyuxin": Path(r"D:\OneDrive\LLMs\persona-material\Zouyuxin\production\zouyuxin-rag.sqlite3"),
+}
 _FORBIDDEN_SOURCE_PARTS = {
     "raw_segments_unreviewed",
     "rag_documents_unreviewed",
@@ -64,8 +74,23 @@ def material_root() -> Path:
     return Path(os.getenv("KUN_MATERIAL_DIR", r"D:\OneDrive\LLMs\kun-material"))
 
 
-def db_path() -> Path:
-    return Path(os.getenv("KUN_RAG_DB", str(DEFAULT_DB)))
+def db_path(persona: str = "kunkun") -> Path:
+    persona = persona.strip().lower()
+    if persona not in PERSONA_DB_DEFAULTS:
+        raise ValueError(f"unsupported RAG persona: {persona}")
+    env_name = f"{persona.upper()}_RAG_DB"
+    return Path(os.getenv(env_name, str(PERSONA_DB_DEFAULTS[persona])))
+
+
+def _connect_reviewed_persona(persona: str) -> sqlite3.Connection:
+    """Open a prebuilt, reviewed persona database without mutating it."""
+
+    target = db_path(persona)
+    if not target.is_file():
+        raise FileNotFoundError(f"reviewed persona RAG database not found: {target}")
+    conn = sqlite3.connect(f"file:{target.as_posix()}?mode=ro", uri=True, timeout=10)
+    conn.row_factory = sqlite3.Row
+    return conn
 
 
 def approved_transcript_dir(root: Path | None = None) -> Path:
@@ -443,7 +468,12 @@ def ensure_index(max_age_seconds: float = 15.0) -> dict[str, int] | None:
         return stats
 
 
-def search(query: str, limit: int = 5) -> list[RagHit]:
+def search(query: str, limit: int = 5, persona: str = "kunkun") -> list[RagHit]:
+    persona = persona.strip().lower()
+    if persona != "kunkun" and not db_path(persona).is_file():
+        return []
+    if persona != "kunkun":
+        return _search_reviewed_persona(query, limit=limit, persona=persona)
     ensure_index()
     tokens = _tokens(query)
     if not tokens:
@@ -478,7 +508,7 @@ def search(query: str, limit: int = 5) -> list[RagHit]:
         conn.close()
 
 
-def style_search(query: str, limit: int = 4) -> list[StyleHit]:
+def style_search(query: str, limit: int = 4, persona: str = "kunkun") -> list[StyleHit]:
     """Retrieve short public utterances for rhythm, not factual grounding.
 
     Style retrieval is intentionally *anti-semantic*: examples with lexical
@@ -487,6 +517,11 @@ def style_search(query: str, limit: int = 4) -> list[StyleHit]:
     diversity also prevents one long livestream from dominating.
     """
 
+    persona = persona.strip().lower()
+    if persona != "kunkun" and not db_path(persona).is_file():
+        return []
+    if persona != "kunkun":
+        return _style_search_reviewed_persona(query, limit=limit, persona=persona)
     ensure_index()
     capped = max(1, min(limit, 8))
     conn = _connect()
@@ -572,10 +607,12 @@ def style_search(query: str, limit: int = 4) -> list[StyleHit]:
         conn.close()
 
 
-def style_context_for(query: str, limit: int = 4, max_chars: int = 1100) -> str:
+def style_context_for(
+    query: str, limit: int = 4, max_chars: int = 1100, persona: str = "kunkun"
+) -> str:
     blocks: list[str] = []
     used = 0
-    for index, hit in enumerate(style_search(query, limit=limit), 1):
+    for index, hit in enumerate(style_search(query, limit=limit, persona=persona), 1):
         labels = "、".join(hit.tags[:4]) if hit.tags else "自然口语"
         block = f"[STYLE-{index}｜{hit.content_type}｜{labels}]\n{hit.text}"
         if blocks and used + len(block) > max_chars:
@@ -585,8 +622,10 @@ def style_context_for(query: str, limit: int = 4, max_chars: int = 1100) -> str:
     return "\n\n".join(blocks)
 
 
-def context_for(query: str, limit: int = 5, max_chars: int = 3600) -> tuple[str, list[dict]]:
-    hits = search(query, limit=limit)
+def context_for(
+    query: str, limit: int = 5, max_chars: int = 3600, persona: str = "kunkun"
+) -> tuple[str, list[dict]]:
+    hits = search(query, limit=limit, persona=persona)
     blocks: list[str] = []
     sources: list[dict] = []
     used = 0
@@ -608,7 +647,44 @@ def context_for(query: str, limit: int = 5, max_chars: int = 3600) -> tuple[str,
     return "\n\n".join(blocks), sources
 
 
-def status() -> dict:
+def status(persona: str = "kunkun") -> dict:
+    persona = persona.strip().lower()
+    if persona != "kunkun" and not db_path(persona).is_file():
+        return {
+            "persona": persona,
+            "database": str(db_path(persona)),
+            "sources": 0,
+            "chunks": 0,
+            "facts": 0,
+            "style_documents": 0,
+            "style_examples": 0,
+            "source_policy": "reviewed_production_pending",
+            "training_permission": TRAINING_PERMISSION,
+        }
+    if persona != "kunkun":
+        conn = _connect_reviewed_persona(persona)
+        try:
+            counts = conn.execute(
+                """
+                SELECT (SELECT count(*) FROM documents) AS documents,
+                       (SELECT count(*) FROM documents WHERE kind = 'fact') AS facts,
+                       (SELECT count(*) FROM documents WHERE kind = 'style') AS style_documents,
+                       (SELECT count(*) FROM style_examples) AS style_examples
+                """
+            ).fetchone()
+            return {
+                "persona": persona,
+                "database": str(db_path(persona)),
+                "sources": int(counts["documents"]),
+                "chunks": int(counts["documents"]),
+                "facts": int(counts["facts"]),
+                "style_documents": int(counts["style_documents"]),
+                "style_examples": int(counts["style_examples"]),
+                "source_policy": "reviewed_production_only",
+                "training_permission": TRAINING_PERMISSION,
+            }
+        finally:
+            conn.close()
     ensure_index()
     conn = _connect()
     try:
@@ -622,13 +698,95 @@ def status() -> dict:
         return {
             "material_dir": str(material_root()),
             "approved_transcript_dir": str(approved_transcript_dir()),
-            "database": str(db_path()),
+            "database": str(db_path("kunkun")),
             "sources": int(counts["sources"]),
             "chunks": int(counts["chunks"]),
             "style_examples": int(counts["style_examples"]),
             "source_policy": "approved_only",
             "training_permission": TRAINING_PERMISSION,
         }
+    finally:
+        conn.close()
+
+
+def _lexical_score(query: str, text: str) -> float:
+    query_tokens = set(_tokens(query))
+    if not query_tokens:
+        return 0.0
+    text_tokens = set(_tokens(text))
+    return len(query_tokens & text_tokens) / max(1, len(query_tokens))
+
+
+def _search_reviewed_persona(query: str, *, limit: int, persona: str) -> list[RagHit]:
+    conn = _connect_reviewed_persona(persona)
+    try:
+        rows = conn.execute(
+            """
+            SELECT record_id, text, source_title, source_url, kind
+            FROM documents
+            WHERE kind = 'fact'
+              AND semantic_gate IN ('attributed_fact', 'own_speech')
+              AND lower(speaker_gate) NOT LIKE '%pending%'
+              AND lower(speaker_gate) NOT LIKE '%reject%'
+            """
+        ).fetchall()
+        scored = [
+            (row, _lexical_score(query, row["text"]))
+            for row in rows
+        ]
+        ranked = sorted(
+            ((row, score) for row, score in scored if score > 0),
+            key=lambda item: item[1],
+            reverse=True,
+        )[: max(1, min(limit, 12))]
+        return [
+            RagHit(
+                content=str(row["text"]),
+                title=str(row["source_title"]),
+                url=str(row["source_url"]),
+                path=f"{persona}:{row['record_id']}",
+                score=round(score, 6),
+            )
+            for row, score in ranked
+        ]
+    finally:
+        conn.close()
+
+
+def _style_search_reviewed_persona(
+    query: str, *, limit: int, persona: str
+) -> list[StyleHit]:
+    conn = _connect_reviewed_persona(persona)
+    try:
+        rows = conn.execute(
+            """
+            SELECT record_id, text, source_url, style_tags_json
+            FROM style_examples
+            ORDER BY record_id
+            """
+        ).fetchall()
+        ranked = sorted(
+            rows,
+            key=lambda row: _lexical_score(query, row["text"]),
+            reverse=True,
+        )
+        hits: list[StyleHit] = []
+        for row in ranked[: max(1, min(limit, 8))]:
+            try:
+                tags = json.loads(row["style_tags_json"] or "[]")
+            except json.JSONDecodeError:
+                tags = []
+            hits.append(
+                StyleHit(
+                    text=str(row["text"]),
+                    title=persona,
+                    source_id=str(row["record_id"]),
+                    content_type="reviewed_public_expression",
+                    tags=tags if isinstance(tags, list) else [],
+                    score=round(_lexical_score(query, row["text"]), 6),
+                )
+            )
+        return hits
     finally:
         conn.close()
 

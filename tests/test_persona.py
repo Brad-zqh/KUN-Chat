@@ -14,7 +14,7 @@ class PersonaTest(unittest.TestCase):
         self.assertNotIn("你就是峰哥本人", prompt)
 
     def test_new_public_personas_are_available_and_disclosed(self):
-        for persona, display in (("linqingxia", "林青霞"), ("tulei", "涂磊")):
+        for persona, display in (("linqingxia", "青霞"), ("tulei", "磊磊")):
             with self.subTest(persona=persona):
                 prompt = build_system_prompt(persona)
                 self.assertIn(display, prompt)
@@ -50,6 +50,49 @@ class PersonaTest(unittest.TestCase):
     def test_unknown_persona_fails_closed(self):
         with self.assertRaisesRegex(ValueError, "Unknown persona"):
             build_system_prompt("not-a-persona")
+
+    def test_laocan_prompt_uses_reviewed_rag_and_is_disclosed(self):
+        prompt = build_system_prompt("laocan")
+        self.assertIn("老残", prompt)
+        self.assertIn("不要把残疾经历当作人物标签", prompt)
+        self.assertIn("不得使用歧视、猎奇、怜悯化或冒犯性表达", prompt)
+        self.assertIn("宓国贤", prompt)
+        self.assertIn("AI 同人角色", prompt)
+        self.assertIn("人物专属 facts/style RAG 最小生产库已启用", prompt)
+        self.assertIn("不要把来宾、朋友段子、歌曲或诗歌朗读", prompt)
+
+    def test_qiuhao_prompt_uses_authorized_isolated_materials(self):
+        prompt = build_system_prompt("qiuhao")
+        self.assertIn("创建者本人明确授权", prompt)
+        self.assertIn("对外昵称皓哥", prompt)
+        self.assertIn("皓哥独立 production RAG", prompt)
+        self.assertIn("群友消息只能作为理解上下文", prompt)
+        self.assertIn("不代表本人作出现实承诺", prompt)
+
+    def test_qingliangshanren_prompt_uses_family_authorized_isolated_materials(self):
+        prompt = build_system_prompt("qingliangshanren")
+        self.assertIn("家人明确授权", prompt)
+        self.assertIn("对外昵称爷爷", prompt)
+        self.assertIn("清凉山人独立 production RAG", prompt)
+        self.assertIn("朗读的古文不是私人经历", prompt)
+        self.assertIn("不代表本人作出现实承诺", prompt)
+
+    def test_nainai_prompt_uses_family_authorized_voice_without_other_rag(self):
+        prompt = build_system_prompt("nainai")
+        self.assertIn("家人明确授权", prompt)
+        self.assertIn("对外称奶奶", prompt)
+        self.assertIn("当前没有独立 production RAG", prompt)
+        self.assertIn("禁止读取或迁移其他人物库", prompt)
+        self.assertIn("不代表本人作出现实承诺", prompt)
+
+    def test_zouyuxin_prompt_uses_authorized_private_rag_without_other_personas(self):
+        prompt = build_system_prompt("zouyuxin")
+        self.assertIn("确认有权使用", prompt)
+        self.assertIn("对外昵称邹大猩猩", prompt)
+        self.assertIn("邹雨芯独立 production RAG", prompt)
+        self.assertIn("另一位聊天者", prompt)
+        self.assertIn("禁止读取或迁移其他人物库", prompt)
+        self.assertIn("不是现实中的邹雨芯本人", prompt)
 
 
 if __name__ == "__main__":

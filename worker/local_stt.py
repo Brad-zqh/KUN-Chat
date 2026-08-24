@@ -23,14 +23,42 @@ for _env_name in (".env", ".env.local"):
 MATERIAL_ROOT = Path(
     os.getenv("KUN_MATERIAL_DIR", r"D:\OneDrive\LLMs\kun-material")
 )
-VENDOR_ROOT = MATERIAL_ROOT / "tools" / "python"
-MODEL_CACHE = MATERIAL_ROOT / "tools" / "models"
+_MIGRATED_VENDOR_ROOT = Path(
+    r"D:\LocalDevDeps\OneDriveMirror\LLMs\kun-material\tools\python"
+)
+VENDOR_ROOT = Path(
+    os.getenv(
+        "KUN_STT_VENDOR_ROOT",
+        str(_MIGRATED_VENDOR_ROOT if _MIGRATED_VENDOR_ROOT.exists() else MATERIAL_ROOT / "tools" / "python"),
+    )
+)
+MODEL_CACHE = Path(
+    os.getenv("KUN_STT_MODEL_CACHE", str(MATERIAL_ROOT / "tools" / "models"))
+)
 MAX_AUDIO_BYTES = max(1, int(os.getenv("KUN_STT_MAX_AUDIO_MB", "12"))) * 1024 * 1024
 MAX_AUDIO_SECONDS = max(5, int(os.getenv("KUN_STT_MAX_AUDIO_SECONDS", "45")))
 
 _MODEL = None
 _MODEL_LOCK = threading.RLock()
 _DLL_HANDLES: list[object] = []
+
+_DEFAULT_STT_PROMPT = (
+    "普通话语音转写，使用简体中文并保留问句。"
+    "可能提到的人名和称呼：邹雨芯、雨芯、邹大猩猩、蔡徐坤、坤坤、峰哥、老残、皓哥、清凉山人、爷爷、奶奶。"
+)
+_CONTEXT_CORRECTIONS = {
+    "zouyuxin": {
+        "周玉琴": "邹雨芯",
+        "周雨欣": "邹雨芯",
+        "周雨芯": "邹雨芯",
+        "邹雨欣": "邹雨芯",
+        "雨欣": "雨芯",
+    },
+    "qingliangshanren": {
+        "清凉善人": "清凉山人",
+        "清凉山仁": "清凉山人",
+    },
+}
 
 
 def _valid_snapshot(path: Path) -> bool:
@@ -141,7 +169,34 @@ def _normalize_text(text: str) -> str:
     return re.sub(r"\s+", " ", text).strip()
 
 
-def transcribe(audio: bytes, content_type: str = "application/octet-stream") -> str:
+def _context_hint(persona: str) -> str:
+    persona = (persona or "").strip().lower()
+    names = {
+        "kunkun": "蔡徐坤（坤坤）",
+        "fengge": "峰哥",
+        "laocan": "老残",
+        "qiuhao": "皓哥",
+        "qingliangshanren": "清凉山人（爷爷）",
+        "nainai": "奶奶",
+        "zouyuxin": "邹雨芯（邹大猩猩）",
+    }
+    name = names.get(persona, "")
+    return f"当前正在和{name}对话，请准确识别人名。" if name else ""
+
+
+def _apply_context_corrections(text: str, persona: str) -> str:
+    for mistaken, expected in _CONTEXT_CORRECTIONS.get(
+        (persona or "").strip().lower(), {}
+    ).items():
+        text = text.replace(mistaken, expected)
+    return text
+
+
+def transcribe(
+    audio: bytes,
+    content_type: str = "application/octet-stream",
+    persona: str = "",
+) -> str:
     if not audio:
         raise ValueError("没有收到录音内容")
     if len(audio) > MAX_AUDIO_BYTES:
@@ -188,18 +243,31 @@ def transcribe(audio: bytes, content_type: str = "application/octet-stream") -> 
             raise ValueError(f"无法读取这段录音{('：' + detail) if detail else ''}")
 
         with _MODEL_LOCK:
-            beam_size = max(1, int(os.getenv("KUN_STT_BEAM_SIZE", "1")))
+            beam_size = max(1, int(os.getenv("KUN_STT_BEAM_SIZE", "5")))
+            initial_prompt = os.getenv(
+                "KUN_STT_INITIAL_PROMPT", _DEFAULT_STT_PROMPT
+            ).strip()
+            context_hint = _context_hint(persona)
+            if context_hint:
+                initial_prompt = f"{initial_prompt}{context_hint}"
+            hotwords = os.getenv(
+                "KUN_STT_HOTWORDS",
+                "邹雨芯 雨芯 蔡徐坤 坤坤 峰哥 老残 皓哥 清凉山人 奶奶",
+            ).strip()
             segments, _ = _model().transcribe(
                 str(wav),
                 language="zh",
                 beam_size=beam_size,
-                best_of=1,
+                best_of=max(1, beam_size),
                 vad_filter=True,
                 vad_parameters={"min_silence_duration_ms": 350},
                 condition_on_previous_text=False,
                 word_timestamps=False,
+                initial_prompt=initial_prompt or None,
+                hotwords=hotwords or None,
             )
             text = _normalize_text("".join(segment.text for segment in segments))
+            text = _apply_context_corrections(text, persona)
     if not text:
         raise ValueError("没有识别到清晰语音，请靠近麦克风再试一次")
     return text

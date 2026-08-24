@@ -1,17 +1,20 @@
 # KUN Chat 多角色复刻工作流
 
-本文记录当前 KUN Chat 的生产流程，并作为“坤坤、峰哥、林青霞、涂磊”四个公开表达型 AI 角色的统一实施规范。这里的“复刻”是指：基于可核验的公开表达，生成带清晰 AI 标识的对话角色；不把角色冒充为真人，也不把影视台词、主持人提问或他人观点写成人物本人的经历与观点。
+本文记录当前 KUN Chat 的生产流程，并作为“坤坤、峰哥、青霞、磊磊、老残”五个公开表达型 AI 角色的统一实施规范。其中青霞基于林青霞公开表达资料，磊磊基于涂磊公开表达资料，老残基于宓国贤（笔名老残）的公开资料。这里的“复刻”是指：基于可核验的公开表达，生成带清晰 AI 标识的对话角色；不把角色冒充为真人，也不把影视台词、主持人提问或他人观点写成人物本人的经历与观点。
 
 ## 1. 当前生产基线
 
 | 角色 | 对话状态 | 事实 RAG | 风格 RAG | 语音状态 |
 | --- | --- | ---: | ---: | --- |
-| 坤坤 | 生产可用 | 105 sources / 117 chunks | 424 examples | 本地已配置；授权状态仍由独立门禁管理 |
-| 峰哥 | 安全人格骨架已重做 | 建设中 | 建设中 | 未配置人物专属 Voice ID |
-| 林青霞 | 安全人格骨架已建立 | 建设中 | 建设中 | 未配置人物专属 Voice ID |
-| 涂磊 | 安全人格骨架已建立 | 建设中 | 建设中 | 未配置人物专属 Voice ID |
+| 坤坤 | 生产可用 | 107 sources / 119 chunks | 424 examples | 本地已配置；授权状态仍由独立门禁管理 |
+| 峰哥 | B站直播切片生产批已接入 | 2 fact documents | 73 style examples | MiniMax 原创数字人声线；非真人声纹克隆 |
+| 青霞（林青霞 AI 角色） | 生产集已接入 | 14 fact documents | 7 style examples | MiniMax 专属 Voice ID，仅保存在本机 |
+| 磊磊（涂磊 AI 角色） | 生产集已接入 | 12 fact documents | 9 style examples | MiniMax 专属 Voice ID，仅保存在本机 |
+| 老残（宓国贤 AI 角色） | 首批生产集已接入 | 15 fact documents | 23 style examples | 未验证训练许可；不做真人声纹训练 |
 
-2026-07-22 第一轮公开资料发现已完成：三人合计 21 个来源、17 条 facts 候选、16 条 style 候选、18 条 pending、15 条 rejected，当前 production 仍为 0。所有候选均须继续经过说话人和语义归属双门禁；不能因为已经登记或能够访问就直接写入生产 RAG。
+2026-07-23 老残首批接入独立生产库：38 documents（15 facts + 23 style），其中 23 条 style examples；`persona_id=laocan` 时只读取 `D:\OneDrive\LLMs\persona-material\Laocan\production\laocan-rag.sqlite3`。歌曲、诗歌朗读、朋友转述、来宾发言和无法确认的余段继续隔离。
+
+style 记录只用于表达风格与归属观点，不得作为客观事实检索；Facts RAG 只查询 `kind=fact` 且语义门禁为 `attributed_fact` 或已核验的 `own_speech`。当前各人物生产库均保持 `production_scope_pending=0`；真人素材的 `training_permission=unverified`、`audio_training_eligible=false`、声纹训练关闭。
 
 候选库总览：`D:\OneDrive\LLMs\persona-material\README.md`；机器可读状态：`D:\OneDrive\LLMs\persona-material\STATUS.json`。
 
@@ -107,6 +110,7 @@ D:\OneDrive\LLMs\persona-material\
   fengge\
   linqingxia\
   tulei\
+  Laocan\
 ```
 
 每个人物至少包含：
@@ -147,8 +151,8 @@ GitHub Pages 只能托管静态页面，不能运行当前 Python 后端，也�
 
 ## 6. 当前下一步
 
-1. 等待公开资料整理任务产出峰哥、林青霞、涂磊的来源清单和待审材料。
-2. 分人物完成双门禁，建立独立 facts/style 数据库。
-3. 将非坤坤角色从“人格骨架”升级为人物专属双 RAG。
-4. 选择云后端与域名，部署 API；随后再发布 GitHub Pages 或其他静态前端。
-5. 在公网测试阶段再启用账号、免费次数、充值和支付回调，避免把本地无限测试规则带到公网。
+1. 继续扩充三人的双审 production 资料，但保持人物库严格隔离。
+2. 公网首版使用服务端密钥、D1 匿名额度和 HTTPS；不把 API 密钥下发到浏览器。
+3. 完成公网四角色事实/风格数据同步与端到端手机实测。
+4. 在公网测试稳定后加入正式账号、充值与支付回调。
+5. 只有取得可核验的独立声音授权后，才为对应人物启用专属 Voice ID。

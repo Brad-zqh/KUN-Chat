@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#071a44">
+  <meta name="description" content="KUN Chat：集成 RAG、语音识别和多角色编排的中英双语 AI 数字人平台。">
+  <title>KUN Chat · AI 数字人平台</title>
+  <link rel="stylesheet" href="./landing.css?v=20260824-bilingual-sync-v2">
+</head>
+<body>
+  <div class="aurora aurora-one"></div><div class="aurora aurora-two"></div><div class="grid-glow"></div>
+  <header class="shell topbar">
+    <a class="brand" href="#top" aria-label="KUN Chat home"><span class="mark">K</span><span><strong>KUN Chat</strong><small data-i18n="brandTag">AI 数字人对话平台</small></span></a>
+    <nav class="nav" aria-label="Primary navigation">
+      <a class="github" href="https://github.com/Brad-zqh/KUN-Chat" target="_blank" rel="noreferrer"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 .7a11.5 11.5 0 0 0-3.6 22.4c.6.1.8-.2.8-.5v-2c-3.4.7-4.1-1.4-4.1-1.4-.6-1.4-1.4-1.8-1.4-1.8-1.1-.8.1-.8.1-.8 1.3.1 2 1.3 2 1.3 1.1 2 3 1.4 3.7 1.1.1-.8.4-1.4.8-1.7-2.7-.3-5.5-1.3-5.5-5.7 0-1.3.5-2.3 1.2-3.1-.1-.3-.5-1.6.1-3.1 0 0 1-.3 3.2 1.2a11 11 0 0 1 5.8 0c2.2-1.5 3.2-1.2 3.2-1.2.6 1.5.2 2.8.1 3.1.8.8 1.2 1.8 1.2 3.1 0 4.4-2.8 5.4-5.5 5.7.4.4.8 1.1.8 2.2v3.2c0 .3.2.6.8.5A11.5 11.5 0 0 0 12 .7Z"/></svg><span data-i18n="repository">代码仓库</span></a>
+      <div class="language" aria-label="Language switcher"><button type="button" data-lang="zh" aria-pressed="true">中</button><button type="button" data-lang="en" aria-pressed="false">EN</button></div>
+    </nav>
+  </header>
+
+  <main id="top" class="shell">
+    <section class="hero reveal">
+      <div class="hero-copy">
+        <p class="eyebrow"><i></i><span data-i18n="eyebrow">RAG · 语音交互 · 多角色编排</span></p>
+        <h1 data-i18n-html="heroTitle">让 AI 角色保留<br><span>表达习惯与专属声音</span></h1>
+        <p class="lead" data-i18n="heroLead">大语言模型结合事实与风格双层 RAG，学习特定人物常用词、句式、语气和回答结构；在获得可验证授权后，个性化语音模型进一步高保真还原其音色、语速、停顿与表达节奏。</p>
+        <div class="actions">
+          <a class="cta primary" href="http://124.156.187.19/chat.html?v=20260823-bilingual" data-i18n="tryProduct">体验在线版本 <b>↗</b></a>
+          <a class="cta secondary" href="https://github.com/Brad-zqh/KUN-Chat" target="_blank" rel="noreferrer" data-i18n="viewCode">查看 GitHub 代码</a>
+        </div>
+        <div class="metrics"><span><b>7</b><small data-i18n="metricPersonas">独立角色</small></span><span><b>RAG</b><small data-i18n="metricGrounded">可溯源回答</small></span><span><b data-i18n="metricVoiceValue">VOICE AI</b><small data-i18n="metricVoice">高保真授权语音</small></span></div>
+      </div>
+
+      <aside class="hero-panel" aria-label="System pipeline">
+        <div class="panel-top"><span><i></i><i></i><i></i></span><b data-i18n="pipelineLabel">交互链路 / Interaction pipeline</b><em>LIVE</em></div>
+        <div class="flow">
+          <div class="flow-row"><span class="flow-icon">01</span><div><b data-i18n="flowInputTitle">文字或语音输入</b><small data-i18n="flowInputBody">浏览器录音 · Whisper 中文识别</small></div><i class="pulse"></i></div>
+          <div class="flow-line"></div>
+          <div class="flow-row"><span class="flow-icon">02</span><div><b data-i18n="flowRagTitle">角色化 RAG 检索</b><small data-i18n="flowRagBody">事实片段 · 口语风格 · 来源追踪</small></div><span class="chips"><i></i><i></i><i></i></span></div>
+          <div class="flow-line"></div>
+          <div class="flow-row"><span class="flow-icon">03</span><div><b data-i18n="flowReplyTitle">角色化生成与高保真语音回复</b><small data-i18n="flowReplyBody">LLM 回答 · 授权声音建模 · TTS 播放</small></div><span class="wave"><i></i><i></i><i></i><i></i><i></i></span></div>
+        </div>
+        <div class="terminal"><span>kun-chat</span><code>grounding: verified</code><code>voice: ready</code></div>
+      </aside>
+    </section>
+
+    <section class="voice-focus reveal" aria-labelledby="voice-title">
+      <div class="voice-visual" aria-hidden="true">
+        <div class="voice-orbit"><span>AI</span><i></i><i></i></div>
+        <div class="voice-wave"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+        <span class="voice-status"><i></i> AUTHORIZED VOICE PROFILE</span>
+      </div>
+      <div class="voice-copy">
+        <span class="section-no">VOICE</span>
+        <h2 id="voice-title" data-i18n-html="voiceTitle">不只是回答问题，<br>而是保留人物的表达与声音</h2>
+        <p data-i18n="voiceBody">风格 RAG 从经过审核的表达样本中检索常用词、句式、语气和叙述结构，让语言模型生成更符合人物习惯的回答；授权 Voice ID 再学习可感知的声音特征，使内容与声音保持一致。</p>
+        <div class="voice-points"><span data-i18n="voiceStyle">用词句式 · Style patterns</span><span data-i18n="voiceTimbre">音色还原 · Timbre</span><span data-i18n="voiceCadence">语速节奏 · Cadence</span><span data-i18n="voicePauses">停顿表达 · Pauses</span><span data-i18n="voiceConsistency">角色一致性 · Consistency</span></div>
+        <small data-i18n="voiceBoundary">仅对拥有独立、可验证授权的说话者启用个性化语音能力。</small>
+      </div>
+    </section>
+
+    <section class="section reveal" id="capabilities">
+      <div class="section-head"><div><span class="section-no">01</span><h2 data-i18n="capTitle">工程能力</h2></div><p data-i18n="capLead">从资料治理到公网部署，项目覆盖了完整的 AI 应用链路，而不仅是一个聊天界面。</p></div>
+      <div class="capabilities">
+        <article class="capability"><span class="cap-icon">R</span><h3 data-i18n="capRagTitle">双层 RAG</h3><p data-i18n="capRagBody">将事实依据与表达风格分离检索，并对未审核材料采取默认拒绝策略。</p><em>FACTS × STYLE</em></article>
+        <article class="capability featured"><span class="cap-icon">◉</span><h3 data-i18n="capVoiceTitle">高保真角色语音</h3><p data-i18n="capVoiceBody">结合按住说话、Whisper 识别、角色专名提示与授权个性化 TTS，形成自然的双向语音对话。</p><em>ASR → LLM → VOICE AI</em></article>
+        <article class="capability"><span class="cap-icon">↗</span><h3 data-i18n="capDeployTitle">生产化部署</h3><p data-i18n="capDeployBody">静态前端与服务端密钥隔离，配套账号、配额、监控和自动部署流程。</p><em>SECURE BY DESIGN</em></article>
+        <article class="capability"><span class="cap-icon">✓</span><h3 data-i18n="capSafetyTitle">安全边界</h3><p data-i18n="capSafetyBody">明确 AI 身份、授权边界与数据来源，不将私人资料或密钥写入公开仓库。</p><em>RESPONSIBLE AI</em></article>
+      </div>
+    </section>
+
+    <section class="section reveal" id="personas">
+      <div class="section-head"><div><span class="section-no">02</span><h2 data-i18n="roleTitle">多角色体验</h2></div><p data-i18n="roleLead">每个角色拥有独立的系统提示、知识库、对话历史与可选语音配置。</p></div>
+      <div class="roles">
+        <article class="role"><img src="./assets/kun-avatar-thumb.webp" alt="坤坤"><b data-i18n="roleKun">坤坤</b><small data-i18n="roleKunNote">音乐与舞台</small><i></i></article>
+        <article class="role"><img src="./assets/fengge-avatar-thumb.webp" alt="峰哥"><b data-i18n="roleFeng">峰哥</b><small data-i18n="roleFengNote">直接、具体观点</small><i></i></article>
+        <article class="role"><img src="./assets/laocan-avatar-thumb.webp" alt="老残"><b data-i18n="roleCan">老残</b><small data-i18n="roleCanNote">阅读与表达</small><i></i></article>
+        <article class="role"><img src="./assets/qiuhao-avatar-thumb.webp" alt="皓哥"><b data-i18n="roleQiu">皓哥</b><small data-i18n="authorized">授权数字人</small><i></i></article>
+        <article class="role"><img class="portrait-top" src="./assets/qingliangshanren-avatar-thumb.webp" alt="爷爷"><b data-i18n="roleQing">爷爷</b><small data-i18n="authorized">授权数字人</small><i></i></article>
+        <article class="role"><img class="portrait-top" src="./assets/nainai-avatar-thumb.webp" alt="奶奶"><b data-i18n="roleNai">奶奶</b><small data-i18n="authorized">授权数字人</small><i></i></article>
+        <article class="role"><img src="./assets/zouyuxin-avatar-thumb.webp" alt="邹大猩猩"><b data-i18n="roleYuxin">邹大猩猩</b><small data-i18n="roleYuxinNote">独立 RAG</small><i></i></article>
+      </div>
+    </section>
+
+    <section class="interview reveal">
+      <div><span class="section-no light">03</span><h2 data-i18n="openTitle">开源代码，中英双语文档</h2><p data-i18n="openBody">在 GitHub 查看系统架构、RAG 数据边界、本地运行方式和部署说明。项目文档同时提供 English 与简体中文版本。</p></div>
+      <a class="cta white" href="https://github.com/Brad-zqh/KUN-Chat" target="_blank" rel="noreferrer" data-i18n="openButton">浏览代码仓库 →</a>
+    </section>
+
+    <div class="notice reveal"><b>AI</b><span data-i18n="notice">所有角色均为 AI 数字人，不代表真人本人、团队或工作室。生成内容不应被视为真人声明、投资意见或专业建议。语音能力仅在具备可验证授权时启用。</span></div>
+  </main>
+
+  <footer class="shell footer"><span>© 2026 KUN Chat · AI Persona Platform</span><span><a href="https://github.com/Brad-zqh/KUN-Chat/blob/main/LICENSE">License</a> · <a href="https://github.com/Brad-zqh/KUN-Chat/blob/main/NOTICE">Notice</a></span></footer>
+  <script src="./landing.js?v=20260824-bilingual-sync-v2"></script>
+</body>
+</html>

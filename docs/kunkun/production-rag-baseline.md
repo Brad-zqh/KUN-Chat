@@ -60,8 +60,8 @@ voice cloning or distributing a cloned voice.
 
 ```powershell
 $env:PYTHONUTF8='1'
-.\.venv\Scripts\python.exe -c "from worker.rag_store import status; import json; print(json.dumps(status(), ensure_ascii=False, indent=2))"
-.\.venv\Scripts\python.exe -m worker.rag_store --query "音乐 舞台 创作"
+& "D:\LocalDevDeps\OneDriveMirror\LLMs\KUN-Chat\.venv\Scripts\python.exe" -c "from worker.rag_store import status; import json; print(json.dumps(status(), ensure_ascii=False, indent=2))"
+& "D:\LocalDevDeps\OneDriveMirror\LLMs\KUN-Chat\.venv\Scripts\python.exe" -m worker.rag_store --query "音乐 舞台 创作"
 ```
 
 Expected status includes `source_policy=approved_only`,

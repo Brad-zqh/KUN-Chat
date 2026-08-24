@@ -1,0 +1,44 @@
+name: Deploy GitHub Pages
+
+on:
+  push:
+    branches: [main, agent/multi-persona-production]
+    paths:
+      - "github-pages/**"
+      - "web/assets/**"
+      - ".github/workflows/pages.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/configure-pages@v5
+      - name: Assemble static site
+        run: |
+          mkdir -p _site/assets
+          cp -R github-pages/. _site/
+          cp web/assets/kun-avatar-ai-v1.png _site/assets/
+          cp web/assets/fengge-avatar.jpg _site/assets/
+          cp web/assets/laocan-avatar.jpg _site/assets/
+          cp web/assets/qiuhao-avatar.png _site/assets/
+          cp web/assets/*-avatar-thumb.webp _site/assets/
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+      - name: Deploy
+        id: deployment
+        uses: actions/deploy-pages@v4

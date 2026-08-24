@@ -4,7 +4,9 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <title>KUN Chat</title>
-  <link rel="preload" as="image" href="/assets/kun-avatar-ai-v1.png" />
+  <link rel="preload" as="image" href="/assets/kun-avatar-thumb.webp?v=20260806-fast1" />
+  <link rel="preload" as="image" href="/assets/fengge-avatar-thumb.webp?v=20260806-fast1" />
+  <link rel="preload" as="image" href="/assets/laocan-avatar-thumb.webp?v=20260806-fast1" />
   <style>
     :root {
       color-scheme: light;
@@ -24,7 +26,7 @@
     body { font-family: Inter, ui-sans-serif, system-ui, -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif; }
     button, textarea, select { font: inherit; }
     button { -webkit-tap-highlight-color: transparent; }
-    .app { width: 100%; height: 100dvh; overflow: hidden; display: grid; grid-template-rows: auto minmax(0, 1fr) auto; }
+    .app { width: 100%; height: 100dvh; overflow: hidden; display: grid; grid-template-rows: auto auto minmax(0, 1fr) auto; }
 
     header {
       position: sticky; top: 0; z-index: 5;
@@ -44,7 +46,14 @@
       box-shadow: 0 0 0 1px rgba(36,104,232,.2), 0 8px 20px rgba(27,84,190,.2);
     }
     .avatar img { display: block; width: 100%; height: 100%; object-fit: cover; object-position: 50% 30%; }
+    .avatar-mark { display: grid; width: 100%; height: 100%; place-items: center; color: #fff; font-weight: 800; background: linear-gradient(145deg, #7869df, #c76da2); }
     .avatar.kun-avatar { background: #174fb7; }
+    /* The KUN artwork is a wide scene. Zoom it explicitly so WebView/WeChat
+       circular clipping keeps the face in frame instead of showing blue sky. */
+    .avatar.kun-avatar img {
+      width: 172%; height: 172%; max-width: none; flex: 0 0 auto;
+      object-fit: cover; object-position: 50% 28%;
+    }
     .title-wrap { min-width: 0; }
     .title { color: #10275b; font-size: 18px; font-weight: 780; letter-spacing: -.01em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .subtitle { margin-top: 2px; color: var(--muted); font-size: 12px; white-space: nowrap; }
@@ -55,6 +64,32 @@
     .music-trigger { min-height: 36px; padding: 0 13px; border: 1px solid #c9dbfb; border-radius: 999px; color: #174fae; background: linear-gradient(135deg,#f7faff,#e8f1ff); cursor: pointer; font-size: 12px; font-weight: 750; white-space: nowrap; }
     .music-trigger:hover { border-color: #83acf0; background: #eaf2ff; }
 
+    .persona-rail {
+      width: 100%; padding: 12px max(18px, env(safe-area-inset-right));
+      border-bottom: 1px solid rgba(202,217,245,.78); background: rgba(247,250,255,.94);
+      box-shadow: 0 8px 24px rgba(28,73,155,.045); overflow-x: auto; scrollbar-width: none;
+    }
+    .persona-rail::-webkit-scrollbar { display: none; }
+    .persona-rail-inner { width: min(920px,100%); margin: 0 auto; display: flex; gap: 12px; }
+    .persona-card {
+      flex: 1 0 150px; min-width: 0; display: flex; align-items: center; gap: 10px;
+      padding: 9px 12px; border: 1px solid #d5e2f8; border-radius: 18px; color: #173667;
+      background: rgba(255,255,255,.92); box-shadow: 0 5px 16px rgba(30,76,160,.055);
+      cursor: pointer; text-align: left; transition: transform .16s, border-color .16s, box-shadow .16s, background .16s;
+    }
+    .persona-card:hover { transform: translateY(-1px); border-color: #8db2f2; }
+    .persona-card.active { border-color: #3476e6; background: #eaf2ff; box-shadow: 0 0 0 3px rgba(36,104,232,.1), 0 9px 22px rgba(25,79,180,.13); }
+    .persona-card-avatar {
+      width: 48px; height: 48px; flex: 0 0 48px; overflow: hidden; border: 2px solid white; border-radius: 50%;
+      background: #174fb7; box-shadow: 0 0 0 1px #bed3f7;
+    }
+    .persona-card-avatar img { display: block; width: 100%; height: 100%; object-fit: cover; object-position: 50% 30%; }
+    .persona-card-avatar .avatar-mark { font-size: 21px; }
+    .persona-card-avatar.kun-avatar img { width: 172%; height: 172%; max-width: none; object-position: 50% 28%; }
+    .persona-card-copy { min-width: 0; }
+    .persona-card-copy strong { display: block; font-size: 15px; }
+    .persona-card-copy small { display: block; margin-top: 2px; color: #7a89a8; font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
     main { width: min(920px, 100%); min-height: 0; margin: 0 auto; padding: 34px 22px 46px; overflow-x: hidden; overflow-y: auto; overscroll-behavior: contain; }
     .notice {
       width: fit-content; max-width: 620px; margin: 0 auto 34px; padding: 9px 15px;
@@ -64,6 +99,7 @@
     .row { display: flex; gap: 14px; align-items: flex-end; animation: rise .22s ease-out; }
     .row.user { justify-content: flex-end; }
     .row.assistant { justify-content: flex-start; }
+    .row.assistant .avatar { align-self: flex-start; margin-top: 18px; }
     .row .avatar { width: 48px; height: 48px; font-size: 12px; }
     .bubble { max-width: min(720px, 82%); padding: 17px 19px; border-radius: 22px; font-size: 16px; line-height: 1.72; white-space: pre-wrap; word-break: break-word; }
     .assistant .bubble { border: 1px solid #e1eafb; border-bottom-left-radius: 7px; background: rgba(255,255,255,.96); box-shadow: 0 12px 32px rgba(30,76,160,.08); }
@@ -96,7 +132,7 @@
     textarea::placeholder { color: #999; }
     .send { width: 42px; height: 42px; border: 0; border-radius: 50%; color: white; background: linear-gradient(145deg,#2874ee,#0d47bd); box-shadow: 0 6px 15px rgba(18,75,184,.23); cursor: pointer; font-size: 22px; }
     .send:disabled { background: #b8c6df; box-shadow: none; cursor: default; }
-    .mic { width: 42px; height: 42px; border: 0; border-radius: 50%; color: var(--accent); background: #edf4ff; cursor: pointer; font-size: 19px; }
+    .mic { width: auto; min-width: 92px; height: 42px; padding: 0 12px; border: 0; border-radius: 16px; color: var(--accent); background: #edf4ff; cursor: pointer; font-size: 13px; font-weight: 750; white-space: nowrap; touch-action: none; user-select: none; -webkit-user-select: none; }
     .mic.listening { color: white; background: #d8433c; animation: pulse 1.2s infinite; }
     .composer-meta { width: min(920px,100%); margin: 7px auto 0; display: flex; justify-content: space-between; gap: 14px; color: #7e8cab; font-size: 11px; padding: 0 8px; }
     .composer-meta label { display: flex; align-items: center; gap: 5px; cursor: pointer; }
@@ -111,6 +147,26 @@
     .field label { display: block; margin-bottom: 7px; font-size: 12px; color: #777; font-weight: 650; }
     select { width: 100%; border: 1px solid var(--line); color: var(--ink); background: white; border-radius: 13px; padding: 12px; outline: none; }
     .drawer button.action { width: 100%; padding: 12px; border: 0; border-radius: 13px; margin-top: 9px; cursor: pointer; }
+    .auth-card { margin: 20px 0 26px; padding: 16px; border: 1px solid #d6e4fb; border-radius: 18px; background: white; }
+    .auth-card h3 { margin: 0 0 7px; color: #173f85; }
+    .auth-card .auth-note { margin: 0 0 12px; }
+    .auth-fields { display: grid; gap: 9px; }
+    .auth-fields input { width: 100%; min-height: 42px; padding: 0 12px; border: 1px solid #cadbf8; border-radius: 11px; font: inherit; }
+    .auth-buttons { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; margin-top: 10px; }
+    .auth-buttons button { min-height: 42px; border: 0; border-radius: 11px; cursor: pointer; }
+    .auth-error { min-height: 20px; margin-top: 8px; color: #cf3535; font-size: 12px; }
+    .auth-user { display: none; }
+    .auth-modal-backdrop { position: fixed; inset: 0; z-index: 70; display: grid; place-items: center; padding: 18px; visibility: hidden; opacity: 0; background: rgba(7,25,63,.5); backdrop-filter: blur(10px); transition: .2s; }
+    .auth-modal-backdrop.open { visibility: visible; opacity: 1; }
+    .auth-modal { position: relative; width: min(440px,100%); max-height: 92dvh; overflow: auto; padding: 28px; border: 1px solid rgba(206,222,250,.95); border-radius: 25px; background: rgba(248,251,255,.99); box-shadow: 0 28px 80px rgba(10,39,96,.3); }
+    .auth-modal .auth-card { margin: 16px 0 0; }
+    .auth-modal-title { margin: 0; color: #123a83; font-size: 25px; }
+    .auth-modal-subtitle { margin: 7px 34px 0 0; color: #667798; font-size: 13px; line-height: 1.65; }
+    .auth-modal-close { position: absolute; top: 16px; right: 16px; width: 36px; height: 36px; border: 0; border-radius: 50%; color: #214f9c; background: #eaf1ff; cursor: pointer; font-size: 21px; }
+    .auth-divider { display: flex; align-items: center; gap: 10px; margin: 14px 0 10px; color: #94a1ba; font-size: 12px; }
+    .auth-divider::before,.auth-divider::after { content: ''; flex: 1; height: 1px; background: #dbe5f7; }
+    .wechat-login { width: 100%; min-height: 43px; border: 1px solid #bfe5cd; border-radius: 11px; color: #177c42; background: #effaf3; cursor: pointer; font: inherit; font-weight: 700; }
+    .wechat-note { margin: 8px 0 0 !important; color: #8794ad !important; font-size: 11px !important; text-align: center; }
     .primary { background: linear-gradient(135deg,#2468e8,#0d47bd); color: white; }
     .secondary { background: #eaf1ff; color: #214f9c; }
     .key-help { padding: 13px; border-radius: 13px; background: #fff4f1; color: #73332f !important; }
@@ -118,13 +174,27 @@
 
     .paywall-backdrop { position: fixed; inset: 0; z-index: 40; display: grid; place-items: center; padding: 22px; visibility: hidden; opacity: 0; background: rgba(7,25,63,.45); backdrop-filter: blur(8px); transition: .2s; }
     .paywall-backdrop.open { visibility: visible; opacity: 1; }
-    .paywall { width: min(430px, 100%); padding: 28px; border: 1px solid rgba(206,222,250,.9); border-radius: 25px; background: rgba(255,255,255,.98); box-shadow: 0 28px 80px rgba(10,39,96,.26); }
+    .paywall { width: min(560px, 100%); max-height: 92dvh; overflow: auto; padding: 28px; border: 1px solid rgba(206,222,250,.9); border-radius: 25px; background: rgba(255,255,255,.98); box-shadow: 0 28px 80px rgba(10,39,96,.26); }
     .paywall h2 { margin: 0 0 10px; color: #123a83; font-size: 24px; }
     .paywall p { margin: 0; color: #667798; line-height: 1.75; }
     .paywall-count { margin: 20px 0; padding: 15px; border-radius: 16px; color: #214f9c; background: #edf4ff; font-weight: 700; text-align: center; }
     .paywall-actions { display: grid; grid-template-columns: 1fr auto; gap: 10px; margin-top: 18px; }
     .paywall-actions button { min-height: 44px; border: 0; border-radius: 13px; padding: 0 16px; cursor: pointer; }
     .paywall-actions .pending { color: white; background: linear-gradient(135deg,#2468e8,#0d47bd); cursor: not-allowed; opacity: .72; }
+    .plans { display:grid; grid-template-columns:repeat(3,1fr); gap:9px; margin:16px 0; }
+    .plan { border:1px solid #cadbf8; border-radius:14px; padding:12px 8px; color:#214f9c; background:#f7faff; cursor:pointer; text-align:center; }
+    .plan.active { border-color:#2468e8; box-shadow:0 0 0 2px #dbe8ff; background:#edf4ff; }
+    .plan strong,.plan span { display:block; }
+    .plan span { margin-top:4px; font-size:12px; color:#7181a0; }
+    .pay-methods { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+    .pay-method { border:1px solid #d8e4f7; border-radius:16px; padding:12px; text-align:center; cursor:pointer; }
+    .pay-method.active { border-color:#2468e8; box-shadow:0 0 0 2px #dbe8ff; }
+    .pay-method img { display:block; width:100%; aspect-ratio:1; object-fit:contain; border-radius:10px; background:white; }
+    .pay-method b { display:block; margin-top:8px; }
+    .payment-proof { width:100%; box-sizing:border-box; min-height:44px; margin-top:14px; padding:0 12px; border:1px solid #cadbf8; border-radius:12px; font:inherit; }
+    .payment-tip { margin-top:10px!important; font-size:12px; color:#8a6337!important; }
+    .payment-result { min-height:22px; margin-top:10px; color:#2468e8; font-size:13px; }
+    @media (max-width:560px){ .plans{grid-template-columns:1fr}.pay-methods{grid-template-columns:1fr 1fr}.paywall{padding:20px}.pay-method{padding:7px} }
 
     .music-backdrop { position: fixed; inset: 0; z-index: 45; display: grid; place-items: center; padding: 18px; visibility: hidden; opacity: 0; background: rgba(5,20,55,.52); backdrop-filter: blur(10px); transition: .2s; }
     .music-backdrop.open { visibility: visible; opacity: 1; }
@@ -162,6 +232,13 @@
       .bubble { max-width: 84%; font-size: 15px; padding: 14px 15px; }
       .row .avatar { width: 42px; height: 42px; }
       .row { gap: 8px; }
+      .persona-rail { padding: 10px 12px; }
+      .persona-rail-inner { width: max-content; gap: 9px; }
+      .persona-card { flex-basis: 126px; padding: 7px 9px; border-radius: 16px; }
+      .persona-card-avatar { width: 43px; height: 43px; flex-basis: 43px; }
+      .persona-card-copy strong { font-size: 14px; }
+      .composer-meta { flex-wrap: wrap; gap: 4px 10px; }
+      #micModeLabel { order: 3; flex-basis: 100%; }
     }
   </style>
 </head>
@@ -170,11 +247,44 @@
     <header>
       <button class="icon-btn" id="menuBtn" aria-label="打开设置">☰</button>
       <div class="identity">
-        <div class="avatar kun-avatar" id="topAvatar"><img src="/assets/kun-avatar-ai-v1.png" alt="KUN Chat 动漫头像" /></div>
+        <div class="avatar kun-avatar" id="topAvatar"><img src="/assets/kun-avatar-thumb.webp?v=20260806-fast1" onerror="this.onerror=null;this.src='/assets/kun-avatar-photo-v1.png?v=20260806-fast1'" alt="KUN Chat 动漫头像" /></div>
         <div class="title-wrap"><div class="title" id="title">KUN Chat</div><div class="subtitle" id="subtitle">公开表达风格 · 本地语料 RAG</div></div>
       </div>
-      <div class="status"><span class="dot" id="statusDot"></span><span class="service-status" id="statusText">正在检查</span><button class="music-trigger" id="musicBtn" type="button">♫ 原创清唱</button><span class="quota-badge" id="quotaText">免费 5 次</span></div>
+      <div class="status"><span class="dot" id="statusDot"></span><span class="service-status" id="statusText">正在检查</span><button class="music-trigger" id="musicBtn" type="button">♫ 原创清唱</button><span class="quota-badge" id="quotaText">免费 4 次</span></div>
     </header>
+
+    <nav class="persona-rail" aria-label="选择数字人角色">
+      <div class="persona-rail-inner" id="personaRail">
+        <button class="persona-card" type="button" data-persona-switch="kunkun" aria-label="切换到坤坤">
+          <span class="persona-card-avatar kun-avatar"><img src="/assets/kun-avatar-thumb.webp?v=20260806-fast1" alt="坤坤" /></span>
+          <span class="persona-card-copy"><strong>坤坤</strong><small>音乐与舞台</small></span>
+        </button>
+        <button class="persona-card" type="button" data-persona-switch="fengge" aria-label="切换到峰哥">
+          <span class="persona-card-avatar"><img src="/assets/fengge-avatar-thumb.webp?v=20260806-fast1" alt="峰哥" /></span>
+          <span class="persona-card-copy"><strong>峰哥</strong><small>直接、具体观点</small></span>
+        </button>
+        <button class="persona-card" type="button" data-persona-switch="laocan" aria-label="切换到老残">
+          <span class="persona-card-avatar"><img src="/assets/laocan-avatar-thumb.webp?v=20260806-fast1" alt="老残" /></span>
+          <span class="persona-card-copy"><strong>老残</strong><small>阅读、写作与生活</small></span>
+        </button>
+        <button class="persona-card" type="button" data-persona-switch="qiuhao" aria-label="切换到皓哥">
+          <span class="persona-card-avatar"><img src="/assets/qiuhao-avatar-thumb.webp?v=20260806-fast1" alt="皓哥" /></span>
+          <span><strong>皓哥</strong><small>本人授权数字人</small></span>
+        </button>
+        <button class="persona-card" type="button" data-persona-switch="qingliangshanren" aria-label="切换到爷爷">
+          <span class="persona-card-avatar"><img src="/assets/qingliangshanren-avatar-thumb.webp?v=20260806-fast1" alt="爷爷" /></span>
+          <span><strong>爷爷</strong><small>家人授权数字人</small></span>
+        </button>
+        <button class="persona-card" type="button" data-persona-switch="nainai" aria-label="切换到奶奶">
+          <span class="persona-card-avatar"><img src="/assets/nainai-avatar-thumb.webp?v=20260806-fast1" alt="奶奶" /></span>
+          <span><strong>奶奶</strong><small>家人授权数字人</small></span>
+        </button>
+        <button class="persona-card" type="button" data-persona-switch="zouyuxin" aria-label="切换到邹大猩猩">
+          <span class="persona-card-avatar"><img src="/assets/zouyuxin-avatar-thumb.webp?v=20260806-fast1" alt="邹大猩猩" /></span>
+          <span><strong>邹大猩猩</strong><small>授权独立 RAG</small></span>
+        </button>
+      </div>
+    </nav>
 
     <main id="main">
       <div class="notice" id="personaNotice">AI 同人角色 · 非真人本人或相关团队</div>
@@ -183,13 +293,14 @@
 
     <div class="composer-shell">
       <div class="composer">
-        <button class="mic" id="micBtn" aria-label="语音输入">●</button>
+        <button class="mic" id="micBtn" type="button" aria-label="按住说话">🎙 按住说话</button>
         <input id="audioCapture" type="file" accept="audio/*" capture="microphone" hidden />
         <textarea id="input" rows="1" placeholder="有问题，尽管问"></textarea>
         <button class="send" id="sendBtn" aria-label="发送">↑</button>
       </div>
       <div class="composer-meta">
         <label><input type="checkbox" id="autoSpeak" checked /> 自动朗读 AI 回复</label>
+        <span id="micModeLabel">🎙 按住说话，松开发送</span>
         <span id="modelLabel">MiniMax · 未配置</span>
       </div>
     </div>
@@ -200,8 +311,31 @@
       <button class="icon-btn" id="closeDrawer" aria-label="关闭">×</button>
       <h2>聊天设置</h2>
       <p>聊天记录只保存在这个浏览器本机。角色可以随时切换，每个角色的对话分别保存。</p>
-      <div class="field"><label for="persona">角色</label><select id="persona"><option value="kunkun">坤坤</option><option value="fengge">峰哥</option><option value="linqingxia">林青霞</option><option value="tulei">涂磊</option></select></div>
-      <div class="field"><label for="provider">文字模型</label><select id="provider"><option value="minimax">MiniMax M2.7</option><option value="deepseek">DeepSeek Chat</option></select></div>
+      <div id="authCardHome"><section class="auth-card" id="authCard">
+        <div id="authGuest">
+          <h3>快速开始</h3>
+          <p class="auth-note">注册后可免费对话 4 次；额度用完后可提交人工充值凭证。</p>
+          <div class="auth-fields">
+            <input id="authUsername" autocomplete="username" maxlength="32" placeholder="用户名（推荐 2–20 位）" />
+            <input id="authPassword" type="password" autocomplete="current-password" maxlength="128" placeholder="密码（至少 6 位）" />
+          </div>
+          <div class="auth-buttons">
+            <button class="primary" id="loginBtn" type="button">登录</button>
+            <button class="secondary" id="registerBtn" type="button">注册</button>
+          </div>
+          <div class="auth-divider"><span>或</span></div>
+          <button class="wechat-login" id="wechatLoginBtn" type="button">微信登录（待开通）</button>
+          <p class="wechat-note">用户名支持中文、字母和数字；密码不要求特殊符号。</p>
+        </div>
+        <div class="auth-user" id="authUser">
+          <h3 id="authUserName">已登录</h3>
+          <p class="auth-note" id="authQuotaText"></p>
+          <button class="action secondary" id="logoutBtn" type="button">退出登录</button>
+        </div>
+        <div class="auth-error" id="authError"></div>
+      </section></div>
+      <div class="field"><label for="persona">角色</label><select id="persona"><option value="kunkun">坤坤</option><option value="fengge">峰哥</option><option value="laocan">老残</option><option value="qiuhao">皓哥</option><option value="qingliangshanren">爷爷</option><option value="nainai">奶奶</option><option value="zouyuxin">邹大猩猩</option></select></div>
+      <div class="field"><label for="provider">文字模型</label><select id="provider"><option value="deepseek">DeepSeek Chat</option></select></div>
       <p class="key-help" id="keyHelp">文字模型尚未配置 API Key。请在项目的 .env.local 中填写所选模型的 Key，然后重启网页服务。</p>
       <button class="action primary" id="applySettings">应用设置</button>
       <button class="action secondary" id="clearChat">清空当前对话</button>
@@ -216,14 +350,35 @@
     </aside>
   </div>
 
+  <div class="auth-modal-backdrop" id="authModal" role="dialog" aria-modal="true" aria-labelledby="authModalTitle">
+    <section class="auth-modal">
+      <button class="auth-modal-close" id="closeAuthModal" type="button" aria-label="暂时关闭登录窗口">×</button>
+      <h2 class="auth-modal-title" id="authModalTitle">注册或登录 KUN Chat</h2>
+      <p class="auth-modal-subtitle">新用户可免费对话 4 次。用户名推荐 2–20 位，密码最低 6 位，规则尽量简单。</p>
+      <div id="authModalContent"></div>
+    </section>
+  </div>
+
   <div class="paywall-backdrop" id="paywall" role="dialog" aria-modal="true" aria-labelledby="paywallTitle">
     <section class="paywall">
-      <h2 id="paywallTitle">5 次免费对话已用完</h2>
-      <p>为了覆盖文字模型和语音生成成本，继续聊天需要充值。当前公开测试版已经锁定免费额度，正式收款通道正在接入。</p>
-      <div class="paywall-count">免费剩余 0 / 5</div>
+      <h2 id="paywallTitle">8 次免费对话已用完</h2>
+      <p>选择支持额度并扫码。个人收款码不支持自动回调，付款后请填写交易单号，管理员人工核对后到账。</p>
+      <div class="paywall-count">免费剩余 0 / 4</div>
+      <div class="plans" id="paymentPlans">
+        <button class="plan active" type="button" data-plan="starter"><strong>¥3.9</strong><span>20 次对话</span></button>
+        <button class="plan" type="button" data-plan="regular"><strong>¥9.9</strong><span>60 次对话</span></button>
+        <button class="plan" type="button" data-plan="supporter"><strong>¥29.9</strong><span>180 次对话</span></button>
+      </div>
+      <div class="pay-methods">
+        <button class="pay-method active" type="button" data-provider="alipay"><img src="/assets/payment/alipay-qr.png" alt="支付宝收款二维码" /><b>支付宝</b></button>
+        <button class="pay-method" type="button" data-provider="wechat"><img src="/assets/payment/wechat-qr.png" alt="微信收款二维码" /><b>微信</b></button>
+      </div>
+      <input class="payment-proof" id="paymentProof" maxlength="64" placeholder="付款后填写交易单号末 4 位以上" />
+      <p class="payment-tip">人工核对通常需要一些时间；请勿重复付款或重复提交。付款不会自动到账。</p>
+      <div class="payment-result" id="paymentResult"></div>
       <div class="paywall-actions">
-        <button class="pending" type="button" disabled>充值即将开放</button>
-        <button class="secondary" id="closePaywall" type="button">稍后再说</button>
+        <button class="primary" id="submitPayment" type="button">提交充值凭证</button>
+        <button class="secondary" id="closePaywall" type="button">关闭</button>
       </div>
     </section>
   </div>
@@ -245,27 +400,80 @@
 
   <script>
     const $ = (id) => document.getElementById(id);
+    const ACTIVE_PERSONAS = new Set(['kunkun','fengge','laocan','qiuhao','qingliangshanren','nainai','zouyuxin']);
+    const requestedPersona = new URLSearchParams(location.search).get('persona');
+    const storedPersona = requestedPersona || localStorage.getItem('persona') || 'kunkun';
+    const SECURE_VOICE_URL = 'https://erik-developmental-hour-afterwards.trycloudflare.com/chat.html?v=20260806-ten';
     const state = {
-      persona: localStorage.getItem('persona') || 'kunkun',
-      provider: localStorage.getItem('provider') || 'deepseek',
+      persona: ACTIVE_PERSONAS.has(storedPersona) ? storedPersona : 'kunkun',
+      // MiniMax is reserved for persona TTS.  Old browser sessions may still
+      // contain `provider=minimax`, so migrate them to the stable DeepSeek
+      // text route instead of repeatedly hitting an obsolete chat key.
+      provider: 'deepseek',
       histories: JSON.parse(localStorage.getItem('chat-histories') || '{}'),
-      status: { providers: {}, voxcpm: false, tts_provider:'voxcpm', music:{ready:false,model:'music-3.0-free',daily_limit:3}, rag: {sources:0,chunks:0}, quota:{free_limit:5,free_used:0,free_remaining:5,credits:0,can_chat:true,payment_enabled:false} }, busy: false, audio: null
+      status: { providers: {}, voxcpm: false, tts_provider:'voxcpm', music:{ready:false,model:'music-3.0-free',daily_limit:3}, rag: {sources:0,chunks:0}, persona_rag:{}, quota:{free_limit:4,free_used:0,free_remaining:4,credits:0,can_chat:true,payment_enabled:false} },
+      auth: { authenticated:false, auth_required:false, user:null },
+      busy: false, audio: null, audioOwner: null
     };
-    const names = { kunkun: '坤坤', fengge: '峰哥', linqingxia: '林青霞', tulei: '涂磊' };
-    const realNames = { kunkun: '蔡徐坤', fengge: '峰哥', linqingxia: '林青霞', tulei: '涂磊' };
-    const initials = { fengge:'峰', linqingxia:'林', tulei:'涂' };
-    const KUN_AVATAR_SRC = '/assets/kun-avatar-ai-v1.png';
+    const names = { kunkun: '坤坤', fengge: '峰哥', laocan: '老残', qiuhao: '皓哥', qingliangshanren: '爷爷', nainai: '奶奶', zouyuxin: '邹大猩猩' };
+    const realNames = { kunkun: '蔡徐坤', fengge: '峰哥', laocan: '老残', qiuhao: '皓哥', qingliangshanren: '清凉山人', nainai: '奶奶', zouyuxin: '邹雨芯' };
+    const KUN_AVATAR_SRC = '/assets/kun-avatar-thumb.webp?v=20260806-fast1';
+    const AVATARS = {
+      kunkun: KUN_AVATAR_SRC,
+      fengge: '/assets/fengge-avatar-thumb.webp?v=20260806-fast1',
+      laocan: '/assets/laocan-avatar-thumb.webp?v=20260806-fast1',
+      qiuhao: '/assets/qiuhao-avatar-thumb.webp?v=20260806-fast1',
+      qingliangshanren: '/assets/qingliangshanren-avatar-thumb.webp?v=20260806-fast1',
+      nainai: '/assets/nainai-avatar-thumb.webp?v=20260806-fast1',
+      zouyuxin: '/assets/zouyuxin-avatar-thumb.webp?v=20260806-fast1'
+    };
+    const AVATAR_MARKS = {};
     const welcomes = {
       kunkun: '你好，我是坤坤。想聊音乐、舞台、创作，或者最近的状态，都可以。',
       fengge: '有什么问题你就问。先说明一下，这是根据公开表达资料设计的 AI 角色，不是峰哥本人。',
-      linqingxia: '你好。可以聊电影、阅读、写作和公开的人生感悟。这里是基于公开资料设计的 AI 角色，不是林青霞本人。',
-      tulei: '你可以直接说问题。这里是根据公开节目与表达资料设计的 AI 角色，不是涂磊本人。'
+      laocan: '你好，我是老残。今天有什么想和我聊聊的吗？这里是根据公开表达资料设计的 AI 角色，不是老残本人。',
+      qiuhao: '你好，我是皓哥的私人 AI 数字人。这里使用本人授权资料，但不能代替本人作出现实承诺。',
+      qingliangshanren: '你好，我是爷爷的家庭授权 AI 数字人。可以聊阅读、生活和人生感悟，但不能代替本人作出现实承诺。',
+      nainai: '你好，我是奶奶的家庭授权 AI 数字人。可以聊家常和生活，但不能代替本人作出现实承诺。',
+      zouyuxin: '你好，我是邹大猩猩的授权 AI 数字人。这里会参考经过隐私清洗的独立资料，但不是真人本人，也不能代替本人作出现实承诺。'
     };
+    let selectedPaymentPlan='starter', selectedPaymentProvider='alipay';
 
     function history() { return state.histories[state.persona] ||= []; }
     function save() { localStorage.setItem('chat-histories', JSON.stringify(state.histories)); }
     function persistSettings() { localStorage.setItem('persona', state.persona); localStorage.setItem('provider', state.provider); }
     function escapeHtml(s) { return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+    async function fetchRetry(url, options={}, attempts=3) {
+      let lastError;
+      for (let attempt=0; attempt<attempts; attempt++) {
+        try {
+          const response=await fetch(url, options);
+          if (![409,502,503,504].includes(response.status) || attempt===attempts-1) return response;
+          lastError=new Error(`HTTP ${response.status}`);
+        } catch (error) {
+          lastError=error;
+          if (attempt===attempts-1) throw error;
+        }
+        await new Promise(resolve=>setTimeout(resolve, 500*(attempt+1)));
+      }
+      throw lastError || new Error('网络请求失败');
+    }
+
+    function stopCurrentAudio() {
+      if (state.audio) {
+        state.audio.pause();
+        state.audio.currentTime=0;
+        state.audio.onended=null;
+      }
+      if (state.audioOwner) {
+        const button=state.audioOwner.querySelector('.speak');
+        if (button) button.textContent='◖)) 朗读';
+        state.audioOwner.done=true;
+      }
+      state.audio=null;
+      state.audioOwner=null;
+    }
 
     function splitSpeech(text, maxChars=48) {
       const sentences = text.match(/[^。！？!?；;\n]+[。！？!?；;\n]?/g) || [text];
@@ -308,7 +516,7 @@
       function loadSegment(index) {
         if (pending.has(index)) return pending.get(index);
         const task = (async () => {
-          const res = await fetch('/synthesize', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ persona: voicePersona, text:segments[index] }) });
+          const res = await fetchRetry('/synthesize', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ persona: voicePersona, text:segments[index] }) });
           if (!res.ok) throw new Error((await res.json()).error || '语音生成失败');
           return new Audio(URL.createObjectURL(await res.blob()));
         })();
@@ -323,21 +531,21 @@
         btn.textContent = index === 0 ? `正在生成第 1/${segments.length} 句…` : `衔接第 ${index+1}/${segments.length} 句…`;
         prefetchFrom(index, 3);
         const audio = await loadSegment(index); wrap.audio = audio;
-        if (state.audio && state.audio !== audio) state.audio.pause();
-        state.audio = audio; wrap.index = index;
+        if (state.audio && state.audio !== audio) stopCurrentAudio();
+        state.audio = audio; state.audioOwner=wrap; wrap.index = index;
         audio.onloadedmetadata = () => duration.textContent = `${index+1}/${segments.length} · ${formatTime(audio.duration)}`;
         audio.ontimeupdate = () => progress.style.width = `${(index + (audio.currentTime / audio.duration || 0)) / segments.length * 100}%`;
         audio.onended = async () => {
           if (index + 1 < segments.length) {
             try { await playSegment(index + 1); } catch(e) { showInlineError(wrap.parentElement,e.message);btn.textContent='◖)) 重试'; }
-          } else { wrap.done=true; btn.textContent='◖)) 重播'; progress.style.width='100%'; duration.textContent=`${segments.length}/${segments.length}`; }
+          } else { wrap.done=true; btn.textContent='◖)) 重播'; progress.style.width='100%'; duration.textContent=`${segments.length}/${segments.length}`; if(state.audio===audio){state.audio=null;state.audioOwner=null;} }
         };
         prefetchFrom(index + 1, 3);
         await audio.play(); btn.textContent='Ⅱ 停止';
       }
 
       btn.onclick = async () => {
-        if (wrap.audio && !wrap.audio.paused) { wrap.audio.pause(); btn.textContent = '◖)) 继续'; return; }
+        if (wrap.audio && !wrap.audio.paused) { stopCurrentAudio(); btn.textContent = '◖)) 重播'; wrap.done=true; return; }
         if (wrap.audio && !wrap.done) { await wrap.audio.play(); btn.textContent = 'Ⅱ 停止'; return; }
         if (wrap.done) { wrap.done=false; progress.style.width='0%'; }
         btn.disabled = true;
@@ -350,7 +558,7 @@
     }
     function formatTime(sec) { if (!Number.isFinite(sec)) return '--:--'; return `${Math.floor(sec/60)}:${String(Math.round(sec%60)).padStart(2,'0')}`; }
     function showInlineError(bubble, message) { let e=bubble.querySelector('.error'); if(!e){e=document.createElement('div');e.className='error';bubble.appendChild(e);} e.textContent=message; }
-    const STAGE_CUE = /语气|语速|平静|平和|轻声|低声|温柔|认真|坚定|轻笑|微笑|叹气|停顿|沉默|放松|调侃|害羞|哽咽|吸气|呼气|咳嗽|激动|开心|难过|无奈|思考|缓慢|提高音量|压低声音/;
+    const STAGE_CUE = /语气|语速|平静|平和|轻声|低声|温柔|认真|坚定|笑|点头|摇头|眨眼|看着|顿了顿|叹气|停顿|沉默|放松|调侃|害羞|哽咽|吸气|呼气|咳嗽|激动|开心|难过|无奈|思考|沉思|缓慢|提高音量|压低声音/;
     function cleanAssistantText(value) {
       return String(value || '')
         .replace(/[\(（\[【]\s*([^\)）\]】\r\n]{1,40})\s*[\)）\]】]/g, (whole, cue) => STAGE_CUE.test(cue) ? '' : whole)
@@ -359,9 +567,12 @@
         .trim();
     }
     function avatarMarkup() {
-      return state.persona==='kunkun'
-        ? `<div class="avatar kun-avatar"><img src="${KUN_AVATAR_SRC}" alt="KUN Chat 动漫头像" /></div>`
-        : `<div class="avatar">${initials[state.persona]||'AI'}</div>`;
+      const avatarClass=state.persona==='kunkun'?' kun-avatar':'';
+      return `<div class="avatar${avatarClass}">${avatarInner(state.persona)}</div>`;
+    }
+    function avatarInner(persona) {
+      const src=AVATARS[persona];
+      return src ? `<img src="${src}" alt="${names[persona]||'AI'}数字人头像" />` : `<span class="avatar-mark" aria-label="${names[persona]||'AI'}数字人头像">${AVATAR_MARKS[persona]||'AI'}</span>`;
     }
 
     function sourceTools(sources=[]) {
@@ -390,24 +601,29 @@
     function addTyping() { const row=document.createElement('div');row.className='row assistant';row.innerHTML=`${avatarMarkup()}<div class="bubble"><span class="typing"><i></i><i></i><i></i></span></div>`;$('messages').appendChild(row);return row; }
     function render() {
       $('messages').innerHTML=''; $('title').textContent=names[state.persona];
-      $('topAvatar').classList.toggle('kun-avatar', state.persona==='kunkun');
-      $('topAvatar').innerHTML = state.persona==='kunkun' ? `<img src="${KUN_AVATAR_SRC}" alt="KUN Chat 动漫头像" />` : (initials[state.persona]||'AI');
-      $('topAvatar').style.background = state.persona==='kunkun' ? '' : 'radial-gradient(circle at 32% 25%,#d8b395,#714329 45%,#21120d 100%)';
+      $('topAvatar').classList.toggle('kun-avatar',state.persona==='kunkun');
+      $('topAvatar').innerHTML = avatarInner(state.persona);
+      $('topAvatar').style.background = '';
       $('personaNotice').textContent=`AI 同人角色 · 非${realNames[state.persona]||'真人'}本人或相关团队`;
       const items=history(); if(!items.length) addMessage('assistant',welcomes[state.persona]); else items.forEach(x=>addMessage(x.role,x.content,false,x.sources||[]));
+      document.querySelectorAll('[data-persona-switch]').forEach(button=>{
+        const active=button.dataset.personaSwitch===state.persona;
+        button.classList.toggle('active',active);
+        button.setAttribute('aria-current',active?'true':'false');
+      });
       $('persona').value=state.persona; $('provider').value=state.provider; updateStatusUI();
     }
     function updateStatusUI() {
       const ready=!!state.status.providers[state.provider];
       const vox=(state.status.voice_ready||{})[state.persona] ?? state.status.voxcpm;
-      const rag=state.status.rag||{sources:0,chunks:0};
+      const rag=(state.status.persona_rag||{})[state.persona]||state.status.rag||{sources:0,chunks:0,style_examples:0};
       const personaTts=(state.status.tts_providers||{})[state.persona]||state.status.tts_provider;
       const voiceName=personaTts==='minimax'?'MiniMax TTS':'VoxCPM';
-      const quota=state.status.quota||{free_limit:5,free_remaining:5,credits:0,can_chat:true};
+      const quota=state.status.quota||{free_limit:4,free_remaining:4,credits:0,can_chat:true};
       $('statusDot').classList.toggle('ready', ready && vox); $('statusText').textContent=ready?(vox?'文字与语音就绪':'文字就绪 · 语音离线'):'等待模型 Key';
       const available=quota.available_total??((quota.free_remaining||0)+(quota.credits||0));
       $('quotaText').textContent=quota.unlimited?'测试不限次数':(quota.credits>0?`可用 ${available} 次`:`免费 ${quota.free_remaining}/${quota.free_limit}`);
-      $('subtitle').textContent=state.persona==='kunkun'?`公开表达风格 · 事实 ${rag.chunks||0} · 口语 ${rag.style_examples||0}`:'公开表达资料 · 人物专属 RAG 建设中';
+      $('subtitle').textContent=`公开表达资料 · 事实 ${rag.chunks||0} · 口语 ${rag.style_examples||0}`;
       $('modelLabel').textContent=`${state.provider==='minimax'?'MiniMax':'DeepSeek'} · ${ready?'已配置':'未配置'} · 事实 ${rag.chunks||0} · 口语 ${rag.style_examples||0} · ${voiceName}${vox?'在线':'离线'}`;
       $('keyHelp').style.display=ready?'none':'block';
       const musicReady=!!state.status.music?.ready;
@@ -415,9 +631,79 @@
       $('musicBtn').title=musicReady?'生成原创清唱':'.env.local 中尚未启用 MiniMax Music';
       $('sendBtn').disabled=state.busy||quota.can_chat===false;
     }
-    function openPaywall(){ $('paywall').classList.add('open'); }
+    function openPaywall(){
+      if(!state.auth.authenticated){openAccount();$('authError').textContent='请先注册或登录，再提交充值凭证';return;}
+      $('paywallTitle').textContent=`${state.status.quota?.free_limit??4} 次免费对话已用完`;
+      $('paywall').classList.add('open');
+    }
     function closePaywall(){ $('paywall').classList.remove('open'); }
-    async function checkStatus(){ try{const r=await fetch('/status');state.status=await r.json();}catch{} updateStatusUI(); }
+    function openAccount(){
+      closePaywall();
+      $('drawer').classList.remove('open');
+      $('authModalContent').appendChild($('authCard'));
+      $('authModal').classList.add('open');
+      setTimeout(()=>$('authUsername').focus(),80);
+    }
+    function closeAccount(){
+      $('authModal').classList.remove('open');
+      $('authCardHome').appendChild($('authCard'));
+    }
+    function updateAuthUI(){
+      const loggedIn=!!state.auth.authenticated;
+      $('authGuest').style.display=loggedIn?'none':'block';
+      $('authUser').style.display=loggedIn?'block':'none';
+      $('authError').textContent='';
+      if(loggedIn){
+        const user=state.auth.user||{};
+        $('authUserName').textContent=`${user.username}${user.is_admin?' · 管理员':''}`;
+        const q=state.status.quota||state.auth.quota||{};
+        const available=q.available_total??((q.free_remaining||0)+(q.credits||0));
+        $('authQuotaText').textContent=q.unlimited?'不限次数':(q.credits>0?`可用 ${available} 次，其中充值 ${q.credits} 次`:`免费剩余 ${q.free_remaining??0}/${q.free_limit??4}`);
+      }
+    }
+    async function checkAuth(){
+      try{
+        const r=await fetch('/auth/me',{credentials:'same-origin'});
+        const data=await r.json();
+        state.auth=data;
+        if(data.quota)state.status.quota=data.quota;
+      }catch{}
+      updateAuthUI();
+      updateStatusUI();
+      if(state.auth.auth_required&&!state.auth.authenticated)openAccount();
+    }
+    async function authAction(mode){
+      const username=$('authUsername').value.trim(),password=$('authPassword').value;
+      $('authError').textContent='';
+      try{
+        const r=await fetch(`/auth/${mode}`,{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({username,password})});
+        const data=await r.json();
+        if(!r.ok)throw new Error(data.error||'操作失败');
+        state.auth={authenticated:true,auth_required:true,user:data.user,quota:data.quota};
+        if(data.quota)state.status.quota=data.quota;
+        $('authPassword').value='';
+        updateAuthUI();updateStatusUI();
+        closeAccount();
+      }catch(e){$('authError').textContent=e.message||'操作失败';}
+    }
+    async function logout(){
+      await fetch('/auth/logout',{method:'POST',credentials:'same-origin'}).catch(()=>{});
+      state.auth={authenticated:false,auth_required:true,user:null};
+      await checkStatus();await checkAuth();
+    }
+    async function submitManualPayment(){
+      if(!state.auth.authenticated){openAccount();return;}
+      const providerOrderId=$('paymentProof').value.trim();
+      $('paymentResult').textContent='';
+      try{
+        const r=await fetch('/payments/manual',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({provider:selectedPaymentProvider,plan_id:selectedPaymentPlan,provider_order_id:providerOrderId})});
+        const data=await r.json();
+        if(!r.ok)throw new Error(data.error||'提交失败');
+        $('paymentResult').textContent=`已提交，订单 ${data.order.order_id}，等待人工核对。`;
+        $('paymentProof').value='';
+      }catch(e){$('paymentResult').textContent=e.message||'提交失败';}
+    }
+    async function checkStatus(){ try{const r=await fetch('/status',{credentials:'same-origin'});state.status=await r.json();}catch{} updateStatusUI(); }
     async function claimOwnerInvite() {
       const params=new URLSearchParams(location.hash.replace(/^#/,''));
       const token=params.get('owner');
@@ -461,9 +747,10 @@
         // The welcome message is rendered but intentionally not persisted. Send it as
         // first-turn context so the model knows it has already introduced itself.
         if(!prior.length) prior.push({role:'assistant',content:welcomes[state.persona]});
-        const r=await fetch('/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({persona:state.persona,provider:state.provider,message,history:prior})});
+        const r=await fetchRetry('/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({persona:state.persona,provider:state.provider,message,history:prior})});
         const data=await r.json();
         if(data.quota){state.status.quota=data.quota;updateStatusUI();}
+        if(r.status===401||data.code==='auth_required'){typing.remove();openAccount();$('authError').textContent=data.error||'请先登录';return;}
         if(r.status===402||data.code==='payment_required'){typing.remove();openPaywall();return;}
         if(!r.ok)throw new Error(data.error||'聊天请求失败'); typing.remove();
         const row=addMessage('assistant',data.reply,true,data.sources||[]);
@@ -474,22 +761,59 @@
     }
     function resize(){const el=$('input');el.style.height='auto';el.style.height=Math.min(el.scrollHeight,132)+'px';}
 
-    let mediaRecorder=null,recordingStream=null,recordingChunks=[],recordingTimer=null,transcribing=false,forceCaptureFallback=false;
+    let mediaRecorder=null,recordingStream=null,recordingChunks=[],recordingTimer=null,transcribing=false,forceCaptureFallback=false,pressingMic=false,recordingStartedAt=0;
+    function idleMicLabel(){return window.isSecureContext?'🎙 按住说话':'🎙 打开语音对话';}
     function resetMic(){
       clearTimeout(recordingTimer);recordingTimer=null;
-      $('micBtn').classList.remove('listening');$('micBtn').textContent='●';
+      $('micBtn').classList.remove('listening');$('micBtn').textContent=idleMicLabel();
       $('input').placeholder='有问题，尽管问';
       if(recordingStream){recordingStream.getTracks().forEach(track=>track.stop());recordingStream=null;}
-      mediaRecorder=null;
+      mediaRecorder=null;pressingMic=false;recordingStartedAt=0;
     }
     function preferredAudioType(){
       if(!window.MediaRecorder)return '';
       return ['audio/webm;codecs=opus','audio/mp4','audio/webm'].find(type=>MediaRecorder.isTypeSupported(type))||'';
     }
+    async function audioInputs(){
+      if(!navigator.mediaDevices?.enumerateDevices)return [];
+      try{return (await navigator.mediaDevices.enumerateDevices()).filter(device=>device.kind==='audioinput');}
+      catch{return [];}
+    }
+    async function requestMicrophoneStream(){
+      const audio={echoCancellation:true,noiseSuppression:true,autoGainControl:true};
+      try{return await navigator.mediaDevices.getUserMedia({audio});}
+      catch(firstError){
+        if(!['NotFoundError','OverconstrainedError','AbortError'].includes(firstError?.name))throw firstError;
+        const inputs=await audioInputs();
+        let lastError=firstError;
+        for(const device of inputs){
+          if(!device.deviceId||device.deviceId==='default'||device.deviceId==='communications')continue;
+          try{return await navigator.mediaDevices.getUserMedia({audio:{...audio,deviceId:{exact:device.deviceId}}});}
+          catch(error){lastError=error;}
+        }
+        try{return await navigator.mediaDevices.getUserMedia({audio:true});}
+        catch(error){throw error||lastError;}
+      }
+    }
+    async function microphoneErrorMessage(error){
+      if(error?.name==='NotAllowedError'||error?.name==='SecurityError'){
+        return '麦克风权限未开启。请点击地址栏左侧的网站权限图标，把“麦克风”改为允许，然后刷新页面。';
+      }
+      if(error?.name==='NotFoundError'||error?.name==='OverconstrainedError'){
+        const inputs=await audioInputs();
+        return inputs.length
+          ? '检测到了麦克风，但浏览器无法打开它。请在浏览器网站权限中重新选择麦克风，或关闭正在独占麦克风的会议、录音软件后重试。'
+          : '没有检测到麦克风。请在 Windows“设置 → 系统 → 声音 → 输入”中启用或连接麦克风，再刷新页面。';
+      }
+      if(error?.name==='NotReadableError'||error?.name==='AbortError'){
+        return '麦克风正被其他程序占用。请先关闭会议、录音或语音软件，再按住说话。';
+      }
+      return `无法开启麦克风：${error?.message||'未知错误'}`;
+    }
     async function uploadRecording(blob){
       transcribing=true;$('micBtn').disabled=true;$('input').placeholder='正在识别语音…';
       try{
-        const r=await fetch('/transcribe',{method:'POST',headers:{'Content-Type':blob.type||'application/octet-stream'},body:blob});
+        const r=await fetch('/transcribe',{method:'POST',headers:{'Content-Type':blob.type||'application/octet-stream','X-KUN-Persona':state.persona},body:blob});
         const data=await r.json();
         if(!r.ok)throw new Error(data.error||'语音识别失败');
         $('input').value=data.text||'';resize();
@@ -509,12 +833,12 @@
       // getUserMedia is unavailable on ordinary HTTP LAN origins. Mobile file
       // capture still opens the phone's trusted system recorder and lets the
       // same local Whisper endpoint transcribe the result.
-      if(forceCaptureFallback||!window.isSecureContext){openSystemRecorder();return;}
+      if(forceCaptureFallback||!window.isSecureContext){pressingMic=false;openSystemRecorder();return;}
       if(!navigator.mediaDevices?.getUserMedia||!window.MediaRecorder){
-        openSystemRecorder();return;
+        pressingMic=false;openSystemRecorder();return;
       }
       try{
-        recordingStream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true,autoGainControl:true}});
+        recordingStream=await requestMicrophoneStream();
         recordingChunks=[];const mimeType=preferredAudioType();
         mediaRecorder=new MediaRecorder(recordingStream,mimeType?{mimeType}:undefined);
         mediaRecorder.ondataavailable=e=>{if(e.data&&e.data.size)recordingChunks.push(e.data);};
@@ -523,34 +847,70 @@
           const blob=new Blob(recordingChunks,{type:mediaRecorder?.mimeType||mimeType||'application/octet-stream'});
           uploadRecording(blob);
         };
-        mediaRecorder.start(250);$('micBtn').classList.add('listening');$('micBtn').textContent='■';
-        $('input').placeholder='正在录音，再点一次停止…';
+        if(!pressingMic){resetMic();return;}
+        mediaRecorder.start(250);recordingStartedAt=Date.now();$('micBtn').classList.add('listening');$('micBtn').textContent='松开发送';
+        $('input').placeholder='正在听你说话，松开发送…';
         recordingTimer=setTimeout(()=>{if(mediaRecorder?.state==='recording')mediaRecorder.stop();},45000);
       }catch(e){
         resetMic();
-        if(e.name==='NotAllowedError'){
-          forceCaptureFallback=true;
-          alert('浏览器没有授予网页麦克风权限。请再点一次麦克风，改用手机系统录音。');
-        }else alert(`无法开启麦克风：${e.message}`);
+        const message=await microphoneErrorMessage(e);
+        $('micModeLabel').textContent=`⚠ ${message}`;
+        alert(message);
       }
     }
-    $('micBtn').title=window.isSecureContext?'语音输入：点击开始，再点一次停止':'语音输入：调用手机系统录音';
-    $('micBtn').onclick=()=>{
-      if(transcribing)return;
-      if(mediaRecorder?.state==='recording')mediaRecorder.stop();else startRecording();
+    function stopPushToTalk(){
+      pressingMic=false;
+      if(mediaRecorder?.state!=='recording')return;
+      const remaining=Math.max(0,280-(Date.now()-recordingStartedAt));
+      setTimeout(()=>{if(mediaRecorder?.state==='recording')mediaRecorder.stop();},remaining);
+    }
+    $('micBtn').textContent=idleMicLabel();
+    $('micBtn').title=window.isSecureContext?'按住说话，松开后自动发送':'打开支持按住说话的 HTTPS 语音版';
+    $('micModeLabel').textContent=window.isSecureContext?'🎙 按住说话，松开发送':'🎙 点击左侧按钮进入按住说话模式';
+    $('micBtn').onpointerdown=e=>{
+      e.preventDefault();
+      if(transcribing||pressingMic)return;
+      if(!window.isSecureContext){location.href=`${SECURE_VOICE_URL}&persona=${encodeURIComponent(state.persona)}`;return;}
+      pressingMic=true;
+      try{$('micBtn').setPointerCapture(e.pointerId);}catch{}
+      startRecording();
     };
+    $('micBtn').onpointerup=e=>{e.preventDefault();stopPushToTalk();};
+    $('micBtn').onpointercancel=stopPushToTalk;
+    $('micBtn').oncontextmenu=e=>e.preventDefault();
+    $('micBtn').onkeydown=e=>{
+      if((e.key===' '||e.key==='Enter')&&!e.repeat&&!transcribing){e.preventDefault();pressingMic=true;startRecording();}
+    };
+    $('micBtn').onkeyup=e=>{if(e.key===' '||e.key==='Enter'){e.preventDefault();stopPushToTalk();}};
 
     $('sendBtn').onclick=send; $('input').oninput=resize; $('input').onkeydown=e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();send();}};
     $('menuBtn').onclick=()=> $('drawer').classList.add('open'); $('closeDrawer').onclick=()=> $('drawer').classList.remove('open');
     $('drawer').onclick=e=>{if(e.target===$('drawer'))$('drawer').classList.remove('open');};
     $('provider').onchange=()=>{state.provider=$('provider').value;updateStatusUI();};
-    $('applySettings').onclick=()=>{state.persona=$('persona').value;state.provider=$('provider').value;persistSettings();render();$('drawer').classList.remove('open');};
+    document.querySelectorAll('[data-persona-switch]').forEach(button=>button.onclick=()=>{
+      const persona=button.dataset.personaSwitch;
+      if(!ACTIVE_PERSONAS.has(persona)||persona===state.persona)return;
+      stopCurrentAudio();state.persona=persona;persistSettings();render();
+      $('main').scrollTo({top:0,behavior:'smooth'});
+    });
+    $('applySettings').onclick=()=>{stopCurrentAudio();state.persona=$('persona').value;state.provider=$('provider').value;persistSettings();render();$('drawer').classList.remove('open');};
     $('clearChat').onclick=()=>{if(confirm('清空当前角色的本地聊天记录？')){state.histories[state.persona]=[];save();render();$('drawer').classList.remove('open');}};
+    $('loginBtn').onclick=()=>authAction('login');
+    $('registerBtn').onclick=()=>authAction('register');
+    $('logoutBtn').onclick=logout;
+    $('authPassword').onkeydown=e=>{if(e.key==='Enter')authAction('login');};
+    $('wechatLoginBtn').onclick=()=>{$('authError').textContent='微信一键登录需先配置微信开放平台 AppID、AppSecret 和 HTTPS 回调域名；现在可直接使用上方账号密码注册。';};
+    $('closeAuthModal').onclick=closeAccount;
+    $('authModal').onclick=e=>{if(e.target===$('authModal'))closeAccount();};
+    document.addEventListener('keydown',e=>{if(e.key==='Escape'&&$('authModal').classList.contains('open'))closeAccount();});
+    document.querySelectorAll('.plan').forEach(el=>el.onclick=()=>{document.querySelectorAll('.plan').forEach(x=>x.classList.remove('active'));el.classList.add('active');selectedPaymentPlan=el.dataset.plan;});
+    document.querySelectorAll('.pay-method').forEach(el=>el.onclick=()=>{document.querySelectorAll('.pay-method').forEach(x=>x.classList.remove('active'));el.classList.add('active');selectedPaymentProvider=el.dataset.provider;});
+    $('submitPayment').onclick=submitManualPayment;
     $('closePaywall').onclick=closePaywall;
     $('paywall').onclick=e=>{if(e.target===$('paywall'))closePaywall();};
     $('musicBtn').onclick=openMusicLab;$('closeMusic').onclick=closeMusicLab;$('cancelMusic').onclick=closeMusicLab;$('generateMusic').onclick=generateMusic;
     $('musicLab').onclick=e=>{if(e.target===$('musicLab'))closeMusicLab();};
-    async function boot(){render();await checkStatus();await claimOwnerInvite();}
+    async function boot(){render();await checkStatus();await checkAuth();await claimOwnerInvite();}
     boot();
   </script>
 </body>

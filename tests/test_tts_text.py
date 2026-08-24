@@ -1,6 +1,10 @@
 import unittest
 
-from worker.web_server import _normalize_tts_text, _strip_stage_directions
+from worker.web_server import (
+    _normalize_tts_text,
+    _strip_repetitive_sentence_openers,
+    _strip_stage_directions,
+)
 
 
 class TtsTextNormalizationTest(unittest.TestCase):
@@ -20,6 +24,10 @@ class TtsTextNormalizationTest(unittest.TestCase):
             _normalize_tts_text("[轻笑]我知道，还是慢慢来。"),
             "我知道，还是慢慢来。",
         )
+        self.assertEqual(
+            _normalize_tts_text("（笑了一下）我也挺想你们的。"),
+            "我也挺想你们的。",
+        )
 
     def test_normal_parenthetical_content_is_preserved(self):
         self.assertEqual(
@@ -36,6 +44,19 @@ class TtsTextNormalizationTest(unittest.TestCase):
             _strip_stage_directions("我会去看（2026年巡演）。"),
             "我会去看（2026年巡演）。",
         )
+
+    def test_laocan_mechanical_sentence_opening_a_is_removed(self):
+        self.assertEqual(
+            _strip_repetitive_sentence_openers(
+                "啊，这件事可以慢慢说。啊，我先讲个具体例子。结尾自然啊。",
+                "laocan",
+            ),
+            "这件事可以慢慢说。我先讲个具体例子。结尾自然啊。",
+        )
+
+    def test_other_personas_keep_their_original_text(self):
+        text = "啊，这件事可以慢慢说。"
+        self.assertEqual(_strip_repetitive_sentence_openers(text, "fengge"), text)
 
 
 if __name__ == "__main__":
