@@ -44,7 +44,7 @@ _DLL_HANDLES: list[object] = []
 
 _DEFAULT_STT_PROMPT = (
     "普通话语音转写，使用简体中文并保留问句。"
-    "可能提到的人名和称呼：邹雨芯、雨芯、蔡徐坤、坤坤、峰哥、老残、皓哥、清凉山人、奶奶。"
+    "可能提到的人名和称呼：邹雨芯、雨芯、邹大猩猩、蔡徐坤、坤坤、峰哥、老残、皓哥、清凉山人、爷爷、奶奶。"
 )
 _CONTEXT_CORRECTIONS = {
     "zouyuxin": {
@@ -176,9 +176,9 @@ def _context_hint(persona: str) -> str:
         "fengge": "峰哥",
         "laocan": "老残",
         "qiuhao": "皓哥",
-        "qingliangshanren": "清凉山人",
+        "qingliangshanren": "清凉山人（爷爷）",
         "nainai": "奶奶",
-        "zouyuxin": "邹雨芯（雨芯）",
+        "zouyuxin": "邹雨芯（邹大猩猩）",
     }
     name = names.get(persona, "")
     return f"当前正在和{name}对话，请准确识别人名。" if name else ""

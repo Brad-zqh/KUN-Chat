@@ -271,17 +271,17 @@
           <span class="persona-card-avatar"><img src="/assets/qiuhao-avatar-thumb.webp?v=20260806-fast1" alt="皓哥" /></span>
           <span><strong>皓哥</strong><small>本人授权数字人</small></span>
         </button>
-        <button class="persona-card" type="button" data-persona-switch="qingliangshanren" aria-label="切换到清凉山人">
-          <span class="persona-card-avatar"><img src="/assets/qingliangshanren-avatar-thumb.webp?v=20260806-fast1" alt="清凉山人" /></span>
-          <span><strong>清凉山人</strong><small>家人授权数字人</small></span>
+        <button class="persona-card" type="button" data-persona-switch="qingliangshanren" aria-label="切换到爷爷">
+          <span class="persona-card-avatar"><img src="/assets/qingliangshanren-avatar-thumb.webp?v=20260806-fast1" alt="爷爷" /></span>
+          <span><strong>爷爷</strong><small>家人授权数字人</small></span>
         </button>
         <button class="persona-card" type="button" data-persona-switch="nainai" aria-label="切换到奶奶">
           <span class="persona-card-avatar"><img src="/assets/nainai-avatar-thumb.webp?v=20260806-fast1" alt="奶奶" /></span>
           <span><strong>奶奶</strong><small>家人授权数字人</small></span>
         </button>
-        <button class="persona-card" type="button" data-persona-switch="zouyuxin" aria-label="切换到雨芯">
-          <span class="persona-card-avatar"><img src="/assets/zouyuxin-avatar-thumb.webp?v=20260806-fast1" alt="邹雨芯" /></span>
-          <span><strong>雨芯</strong><small>授权独立 RAG</small></span>
+        <button class="persona-card" type="button" data-persona-switch="zouyuxin" aria-label="切换到邹大猩猩">
+          <span class="persona-card-avatar"><img src="/assets/zouyuxin-avatar-thumb.webp?v=20260806-fast1" alt="邹大猩猩" /></span>
+          <span><strong>邹大猩猩</strong><small>授权独立 RAG</small></span>
         </button>
       </div>
     </nav>
@@ -334,7 +334,7 @@
         </div>
         <div class="auth-error" id="authError"></div>
       </section></div>
-      <div class="field"><label for="persona">角色</label><select id="persona"><option value="kunkun">坤坤</option><option value="fengge">峰哥</option><option value="laocan">老残</option><option value="qiuhao">皓哥</option><option value="qingliangshanren">清凉山人</option><option value="nainai">奶奶</option><option value="zouyuxin">雨芯</option></select></div>
+      <div class="field"><label for="persona">角色</label><select id="persona"><option value="kunkun">坤坤</option><option value="fengge">峰哥</option><option value="laocan">老残</option><option value="qiuhao">皓哥</option><option value="qingliangshanren">爷爷</option><option value="nainai">奶奶</option><option value="zouyuxin">邹大猩猩</option></select></div>
       <div class="field"><label for="provider">文字模型</label><select id="provider"><option value="deepseek">DeepSeek Chat</option></select></div>
       <p class="key-help" id="keyHelp">文字模型尚未配置 API Key。请在项目的 .env.local 中填写所选模型的 Key，然后重启网页服务。</p>
       <button class="action primary" id="applySettings">应用设置</button>
@@ -415,7 +415,7 @@
       auth: { authenticated:false, auth_required:false, user:null },
       busy: false, audio: null, audioOwner: null
     };
-    const names = { kunkun: '坤坤', fengge: '峰哥', laocan: '老残', qiuhao: '皓哥', qingliangshanren: '清凉山人', nainai: '奶奶', zouyuxin: '雨芯' };
+    const names = { kunkun: '坤坤', fengge: '峰哥', laocan: '老残', qiuhao: '皓哥', qingliangshanren: '爷爷', nainai: '奶奶', zouyuxin: '邹大猩猩' };
     const realNames = { kunkun: '蔡徐坤', fengge: '峰哥', laocan: '老残', qiuhao: '皓哥', qingliangshanren: '清凉山人', nainai: '奶奶', zouyuxin: '邹雨芯' };
     const KUN_AVATAR_SRC = '/assets/kun-avatar-thumb.webp?v=20260806-fast1';
     const AVATARS = {
@@ -433,9 +433,9 @@
       fengge: '有什么问题你就问。先说明一下，这是根据公开表达资料设计的 AI 角色，不是峰哥本人。',
       laocan: '你好，我是老残。今天有什么想和我聊聊的吗？这里是根据公开表达资料设计的 AI 角色，不是老残本人。',
       qiuhao: '你好，我是皓哥的私人 AI 数字人。这里使用本人授权资料，但不能代替本人作出现实承诺。',
-      qingliangshanren: '你好，我是清凉山人的家庭授权 AI 数字人。可以聊阅读、生活和人生感悟，但不能代替本人作出现实承诺。',
+      qingliangshanren: '你好，我是爷爷的家庭授权 AI 数字人。可以聊阅读、生活和人生感悟，但不能代替本人作出现实承诺。',
       nainai: '你好，我是奶奶的家庭授权 AI 数字人。可以聊家常和生活，但不能代替本人作出现实承诺。',
-      zouyuxin: '你好，我是雨芯的授权 AI 数字人。这里会参考经过隐私清洗的独立资料，但不是真人本人，也不能代替本人作出现实承诺。'
+      zouyuxin: '你好，我是邹大猩猩的授权 AI 数字人。这里会参考经过隐私清洗的独立资料，但不是真人本人，也不能代替本人作出现实承诺。'
     };
     let selectedPaymentPlan='starter', selectedPaymentProvider='alipay';
 
